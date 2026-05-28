@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>富寓室內裝潢公司報價單</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="assets/data.js"></script>
+  <script src="assets/app.js"></script>
+</head>
+<body>
+<div class="app" x-data="quoteApp()" x-init="init()">
+
+  <!-- ===== Toolbar（不列印） ===== -->
+  <div class="toolbar no-print">
+    <div><strong>富寓報價單編輯器</strong>　<span style="color:#888;font-size:12px;">自動暫存中</span></div>
+    <div class="toolbar-actions">
+      <button class="btn" @click="exportJson()">📥 匯出 JSON</button>
+      <label class="btn" style="cursor:pointer;">
+        📤 匯入 JSON
+        <input type="file" accept=".json" @change="importJson($event)" style="display:none;">
+      </label>
+      <button class="btn btn-danger" @click="clearAll()">🗑 清空</button>
+      <button class="btn btn-primary" @click="printQuote()">🖨 列印 / 存 PDF</button>
+    </div>
+  </div>
+
+  <!-- ===== Paper 報價單版面 ===== -->
+  <div class="paper">
+
+    <!-- Header -->
+    <div class="header">
+      <h1 x-text="company.name"></h1>
+      <h2>報　價　單</h2>
+    </div>
+
+    <!-- 工程與客戶資料 -->
+    <div class="info-grid">
+      <div class="info-row">
+        <label>工程名稱：</label>
+        <input type="text" x-model="project.name" placeholder="例：蘆竹案">
+      </div>
+      <div class="info-row">
+        <label>報價日期：</label>
+        <input type="date" x-model="project.date">
+      </div>
+      <div class="info-row">
+        <label>工程地點：</label>
+        <input type="text" x-model="project.location" placeholder="施工地址">
+      </div>
+      <div class="info-row">
+        <label>現場聯絡：</label>
+        <input type="text" x-model="project.contact" placeholder="現場聯絡人與電話">
+      </div>
+      <div class="info-row">
+        <label>客戶名稱：</label>
+        <input type="text" x-model="customer.name">
+      </div>
+      <div class="info-row">
+        <label>聯絡電話：</label>
+        <input type="text" x-model="customer.phone">
+      </div>
+      <div class="info-row">
+        <label>公司統編：</label>
+        <input type="text" x-model="customer.taxId">
+      </div>
+      <div class="info-row">
+        <label>發票抬頭：</label>
+        <input type="text" x-model="customer.invoiceTitle">
+      </div>
+      <div class="info-row" style="grid-column: 1 / -1;">
+        <label>客戶地址：</label>
+        <input type="text" x-model="customer.address">
+      </div>
+    </div>
+
+    <!-- ===== 新增項目（不列印） ===== -->
+    <div class="add-row no-print">
+      <span style="font-weight:600;">＋ 新增項目：</span>
+      <select x-model="addForm.floor">
+        <template x-for="f in floorOptions" :key="f">
+          <option :value="f" x-text="f"></option>
+        </template>
+      </select>
+      <select x-model="addForm.category" @change="addForm.itemName = ''">
+        <template x-for="c in categories" :key="c">
+          <option :value="c" x-text="c"></option>
+        </template>
+      </select>
+      <select x-model="addForm.itemName">
+        <option value="">── 選擇項目 ──</option>
+        <template x-for="item in filteredItems" :key="item.name">
+          <option :value="item.name" x-text="`${item.name}（${item.defaultPrice ? item.defaultPrice + '/' + item.unit : '待估'}）`"></option>
+        </template>
+      </select>
+      <button class="btn btn-primary" @click="addItem()">加入</button>
+      <button class="btn" @click="addCustomItem()">自訂項目…</button>
+    </div>
+
+    <!-- ===== 項目表（按分類分組顯示） ===== -->
+    <template x-for="(itemList, category) in itemsByCategory" :key="category">
+      <div>
+        <div class="section-title">
+          <span x-text="category + ' 工程'"></span>
+          <span class="subtotal" x-text="`小計　$ ${formatMoney(categorySubtotals[category])}`"></span>
+        </div>
+        <table class="items">
+          <thead>
+            <tr>
+              <th class="col-floor">樓層</th>
+              <th>項目及說明</th>
+              <th class="col-unit">單位</th>
+              <th class="col-qty">數量</th>
+              <th class="col-price">單價</th>
+              <th class="col-subtotal">總價</th>
+              <th>備註</th>
+              <th class="col-action no-print">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="item in itemList" :key="item.id">
+              <tr>
+                <td>
+                  <select x-model="item.floor">
+                    <template x-for="f in floorOptions" :key="f">
+                      <option :value="f" x-text="f"></option>
+                    </template>
+                  </select>
+                </td>
+                <td><input type="text" x-model="item.name"></td>
+                <td>
+                  <select x-model="item.unit">
+                    <template x-for="u in unitOptions" :key="u">
+                      <option :value="u" x-text="u"></option>
+                    </template>
+                  </select>
+                </td>
+                <td><input type="number" x-model.number="item.qty" min="0" step="0.5"></td>
+                <td><input type="number" x-model.number="item.price" min="0"></td>
+                <td class="col-subtotal total-cell" x-text="formatMoney(subtotal(item))"></td>
+                <td><input type="text" x-model="item.note" placeholder=""></td>
+                <td class="no-print" style="white-space:nowrap;">
+                  <button class="btn" @click="moveUp(item.id)" title="上移" style="padding:2px 6px;">↑</button>
+                  <button class="btn" @click="moveDown(item.id)" title="下移" style="padding:2px 6px;">↓</button>
+                  <button class="btn" @click="duplicateItem(item.id)" title="複製" style="padding:2px 6px;">複</button>
+                  <button class="btn btn-danger" @click="removeItem(item.id)" title="刪除" style="padding:2px 6px;">✕</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <div x-show="items.length === 0" style="text-align:center; padding:40px; color:#999;">
+      尚無項目，請從上方下拉選單新增。
+    </div>
+
+    <!-- ===== 合計區 ===== -->
+    <div class="summary" x-show="items.length > 0">
+      <div class="summary-row">
+        <span>工程總額（未稅）</span>
+        <span x-text="`$ ${formatMoney(grandTotal)}`"></span>
+      </div>
+      <div class="summary-row no-print">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" x-model="needInvoice"> 需開立發票（外加 5% 營業稅）
+        </label>
+        <span x-show="needInvoice" x-text="`+ $ ${formatMoney(tax)}`"></span>
+      </div>
+      <div class="summary-row" x-show="needInvoice" style="display:none;" x-bind:style="needInvoice ? 'display:flex' : 'display:none'">
+        <span>營業稅 5%</span>
+        <span x-text="`$ ${formatMoney(tax)}`"></span>
+      </div>
+      <div class="summary-row total">
+        <span x-text="needInvoice ? '總計（含稅）' : '總計（未含稅）'"></span>
+        <span x-text="`$ ${formatMoney(finalTotal)}`"></span>
+      </div>
+
+      <!-- 三期付款 -->
+      <div class="payment-schedule">
+        <div class="payment-cell">
+          <div class="label">請款一　進場時收 30%</div>
+          <div class="amount" x-text="`$ ${formatMoney(payments.first)}`"></div>
+        </div>
+        <div class="payment-cell">
+          <div class="label">請款二　工程進度 40%</div>
+          <div class="amount" x-text="`$ ${formatMoney(payments.second)}`"></div>
+        </div>
+        <div class="payment-cell">
+          <div class="label">請款三　完工後 30%</div>
+          <div class="amount" x-text="`$ ${formatMoney(payments.third)}`"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 備註條款 ===== -->
+    <div class="footer">
+      <div class="terms">
+        <strong>備註說明：</strong>
+        <ol>
+          <template x-for="(term, idx) in terms" :key="idx">
+            <li x-text="term"></li>
+          </template>
+        </ol>
+      </div>
+
+      <!-- 客戶與公司簽章區 -->
+      <div class="signature-area">
+        <div class="sig-block">
+          <h4>客戶確認章戳</h4>
+          <div class="sig-info">
+            <div class="row"><span class="key">客戶名稱：</span><span x-text="customer.name"></span></div>
+            <div class="row"><span class="key">聯絡電話：</span><span x-text="customer.phone"></span></div>
+            <div class="row"><span class="key">統一編號：</span><span x-text="customer.taxId"></span></div>
+            <div class="row"><span class="key">發票抬頭：</span><span x-text="customer.invoiceTitle"></span></div>
+            <div class="row"><span class="key">地　　址：</span><span x-text="customer.address"></span></div>
+            <div style="margin-top:20px;color:#999;font-size:11px;">（請於此處簽名或蓋章）</div>
+          </div>
+        </div>
+        <div class="sig-block">
+          <h4>
+            富寓室內裝潢有限公司
+            <span style="float:right;font-size:11px;font-weight:normal;color:#888;">統編 60380943</span>
+          </h4>
+          <div class="sig-info">
+            <div class="row"><span class="key">現場聯絡：</span><span x-text="`${company.contact}　${company.phone}`"></span></div>
+            <div class="row">
+              <span class="key">付款方式：</span>
+              <span>
+                匯款／轉帳
+                <span class="bank-selector no-print">
+                  ・選擇帳戶：
+                  <select x-model="bankChoice">
+                    <option value="cathay" x-text="company.banks.cathay.label"></option>
+                    <option value="yuanta" x-text="company.banks.yuanta.label"></option>
+                  </select>
+                </span>
+              </span>
+            </div>
+            <div class="row"><span class="key">銀行名稱：</span><span x-text="currentBank.bankName + '（' + currentBank.bankCode + '）'"></span></div>
+            <div class="row"><span class="key">戶　　名：</span><span x-text="currentBank.accountName"></span></div>
+            <div class="row"><span class="key">匯款帳號：</span><span x-text="currentBank.accountNo"></span></div>
+            <div style="margin-top:16px;color:#999;font-size:11px;">（公司用印）</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

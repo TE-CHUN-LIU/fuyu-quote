@@ -1,0 +1,342 @@
+/* 富寓室內裝潢公司報價單 ── 樣式 */
+
+:root {
+  --primary: #1e3a5f;        /* 深藍 ── 公司主色 */
+  --primary-light: #2a4d7c;
+  --accent: #c89b3c;          /* 金 ── 強調色 */
+  --bg: #f5f5f0;
+  --paper: #ffffff;
+  --text: #2c2c2c;
+  --text-muted: #6b6b6b;
+  --border: #d4d4d4;
+  --table-header: #e8eef5;
+  --table-row-alt: #fafbfc;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Helvetica Neue', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* === Toolbar === */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--paper);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.toolbar-actions { display: flex; gap: 8px; }
+
+.btn {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  transition: all .15s;
+}
+.btn:hover { background: #f0f0ed; }
+.btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-light); }
+.btn-accent { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-danger { color: #c44; }
+
+/* === Paper (報價單版面) === */
+.paper {
+  background: var(--paper);
+  padding: 32px 40px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  min-height: 1000px;
+}
+
+.header {
+  text-align: center;
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.header h1 {
+  margin: 0;
+  font-size: 24px;
+  color: var(--primary);
+  letter-spacing: 4px;
+}
+.header h2 {
+  margin: 6px 0 0;
+  font-size: 18px;
+  color: var(--text-muted);
+  letter-spacing: 8px;
+  font-weight: normal;
+}
+
+/* === Info Grid (工程/客戶資料) === */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  margin-bottom: 24px;
+}
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px dotted var(--border);
+  padding: 6px 0;
+}
+.info-row label {
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+.info-row input, .info-row textarea {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  padding: 2px 4px;
+  color: var(--text);
+  font-family: inherit;
+}
+.info-row input:focus, .info-row textarea:focus {
+  outline: 1px dashed var(--primary);
+  background: #fffae0;
+}
+
+/* === Item Table === */
+.section-title {
+  margin: 24px 0 8px;
+  padding: 8px 12px;
+  background: var(--table-header);
+  border-left: 4px solid var(--primary);
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.section-title .subtotal {
+  font-size: 14px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+table.items {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+table.items th, table.items td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+table.items th {
+  background: var(--table-header);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+table.items td input,
+table.items td select {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 2px;
+}
+table.items td input:focus, table.items td select:focus {
+  outline: 1px dashed var(--primary);
+  background: #fffae0;
+}
+table.items td input[type=number] { text-align: right; }
+table.items tr:nth-child(even) td { background: var(--table-row-alt); }
+table.items .col-floor { width: 60px; }
+table.items .col-unit { width: 60px; }
+table.items .col-qty { width: 70px; }
+table.items .col-price { width: 90px; }
+table.items .col-subtotal { width: 100px; text-align: right; font-weight: 600; }
+table.items .col-action { width: 40px; text-align: center; }
+table.items .total-cell {
+  text-align: right;
+  padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.add-row {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 16px;
+  padding: 8px;
+  background: #f7f9fc;
+  border-radius: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.add-row select, .add-row input {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.add-row select { min-width: 200px; }
+.add-row .btn { padding: 6px 12px; }
+
+/* === Summary === */
+.summary {
+  margin: 24px 0;
+  padding: 16px 20px;
+  background: linear-gradient(to right, #fffaec, #fff5d4);
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 14px;
+}
+.summary-row.total {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+  border-top: 1px solid var(--accent);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.payment-schedule {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.payment-cell {
+  padding: 10px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-align: center;
+}
+.payment-cell .label { font-size: 12px; color: var(--text-muted); }
+.payment-cell .amount { font-size: 16px; font-weight: 700; color: var(--primary); margin-top: 4px; }
+
+/* === Footer === */
+.footer {
+  margin-top: 32px;
+}
+.terms {
+  background: #fafafa;
+  padding: 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+.terms ol { margin: 0; padding-left: 20px; }
+.terms li { margin-bottom: 4px; }
+
+.signature-area {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.sig-block {
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 6px;
+  min-height: 140px;
+}
+.sig-block h4 {
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--primary);
+  font-size: 14px;
+}
+.sig-info { font-size: 12px; line-height: 1.8; }
+.sig-info .row { display: flex; gap: 4px; }
+.sig-info .key { color: var(--text-muted); min-width: 60px; }
+
+.bank-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.bank-selector select {
+  padding: 2px 6px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: white;
+}
+
+/* === Print === */
+@media print {
+  body { background: white; font-size: 11px; }
+  .app { max-width: 100%; padding: 0; margin: 0; }
+  .toolbar, .no-print { display: none !important; }
+  .paper {
+    box-shadow: none;
+    padding: 12mm 14mm;
+    min-height: auto;
+    border-radius: 0;
+  }
+  .header h1 { font-size: 18px; }
+  .header h2 { font-size: 14px; }
+  .add-row { display: none; }
+  table.items th, table.items td {
+    padding: 3px 6px;
+    font-size: 10.5px;
+  }
+  .section-title { font-size: 12px; padding: 4px 8px; margin: 12px 0 4px; }
+  .summary { padding: 8px 12px; margin: 12px 0; background: #fff8e0; }
+  .payment-cell { padding: 6px; }
+  .terms { font-size: 9.5px; padding: 8px; }
+  .info-grid { gap: 4px 16px; margin-bottom: 12px; }
+  .info-row { padding: 2px 0; }
+  .signature-area { margin-top: 16px; gap: 16px; }
+  .sig-block { padding: 10px; min-height: 100px; }
+  input, select {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent !important;
+  }
+  /* 把 input 框線隱藏，列印起來像填好的紙本 */
+  .info-row input, .info-row textarea,
+  table.items td input, table.items td select {
+    border: none;
+    outline: none;
+  }
+  /* 不要分頁切到表格中間 */
+  table.items, tr { page-break-inside: avoid; }
+  .section-title, .summary, .signature-area { page-break-inside: avoid; }
+  /* 隱藏沒填的 placeholder */
+  ::placeholder { color: transparent; }
+}
