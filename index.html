@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>富寓室內裝潢公司報價單</title>
   <link rel="stylesheet" href="assets/style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="assets/data.js"></script>
@@ -26,10 +25,13 @@
       <button class="btn btn-danger" @click="clearAll()">🗑 清空</button>
       <button class="btn" @click="saveExcel()" title="Numbers 也能直接打開 .xlsx">📊 存 Excel</button>
       <button class="btn" @click="saveCsv()" title="通用格式、任何試算表軟體都能開">📋 存 CSV</button>
-      <button class="btn" @click="printQuote()">🖨 列印</button>
-      <button class="btn btn-primary" @click="savePdf()" :disabled="pdfBusy" x-text="pdfBusy ? '產生中…' : '📄 存 PDF'"></button>
+      <button class="btn" @click="toggleLock()" title="切換預覽模式（藏下拉/placeholder，方便截圖分享）">🔒 鎖定預覽</button>
+      <button class="btn btn-primary" @click="printQuote()" title="瀏覽器列印對話框可選『另存為 PDF』（A4 直立）">🖨 列印 / 存 PDF</button>
     </div>
   </div>
+
+  <!-- 鎖定模式時顯示的浮動解鎖鈕 -->
+  <button class="unlock-fab no-print" @click="toggleLock()" x-show="isLocked" title="回到編輯模式">✏️ 編輯</button>
 
   <!-- ===== Paper 報價單版面 ===== -->
   <div class="paper">

@@ -307,6 +307,38 @@ table.items .total-cell {
   background: white;
 }
 
+/* === Lock 預覽模式（編輯中切到乾淨檢視，方便截圖/分享） === */
+body.locked .no-print { display: none !important; }
+body.locked ::placeholder { color: transparent !important; }
+body.locked .info-row input,
+body.locked .info-row textarea,
+body.locked table.items td input,
+body.locked table.items td select {
+  outline: none;
+  background: transparent !important;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none;
+}
+body.locked input[type=checkbox] { pointer-events: none; }
+body.locked .app { padding-top: 8px; }
+
+.unlock-fab {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 24px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+.unlock-fab:hover { background: var(--primary-light); }
+
 /* === Print === */
 @page {
   size: A4 portrait;

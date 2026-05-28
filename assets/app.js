@@ -24,7 +24,7 @@ function quoteApp() {
     items: [],
     bankChoice: 'cathay', // 'cathay' 或 'yuanta'
     needInvoice: false,
-    pdfBusy: false,
+    isLocked: false,
     addForm: {
       category: '木工',
       itemName: '',
@@ -236,6 +236,11 @@ function quoteApp() {
       event.target.value = '';
     },
 
+    toggleLock() {
+      this.isLocked = !this.isLocked;
+      document.body.classList.toggle('locked', this.isLocked);
+    },
+
     printQuote() {
       const oldTitle = document.title;
       const name = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}`;
@@ -343,42 +348,5 @@ function quoteApp() {
       return r;
     },
 
-    async savePdf() {
-      if (this.pdfBusy) return;
-      this.pdfBusy = true;
-      // 切到列印樣式（隱藏 toolbar、no-print 元素、收緊版型）
-      document.body.classList.add('printing');
-      // 給一個 frame 讓樣式生效再 render
-      await new Promise(r => setTimeout(r, 50));
-      try {
-        const paper = document.querySelector('.paper');
-        const filename = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}.pdf`;
-        const opt = {
-          margin:       [10, 12, 10, 12], // mm: top, left, bottom, right
-          filename:     filename,
-          image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            backgroundColor: '#ffffff',
-          },
-          jsPDF:        {
-            unit: 'mm',
-            format: 'a4',
-            orientation: 'portrait',
-            compress: true,
-          },
-          pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.section-title', '.summary', '.signature-area'] },
-        };
-        await html2pdf().set(opt).from(paper).save();
-      } catch (err) {
-        alert('產生 PDF 失敗：' + err.message);
-        console.error(err);
-      } finally {
-        document.body.classList.remove('printing');
-        this.pdfBusy = false;
-      }
-    },
   };
 }
