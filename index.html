@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>富寓室內裝潢公司報價單</title>
   <link rel="stylesheet" href="assets/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="assets/data.js"></script>
   <script src="assets/app.js"></script>
@@ -22,7 +24,10 @@
         <input type="file" accept=".json" @change="importJson($event)" style="display:none;">
       </label>
       <button class="btn btn-danger" @click="clearAll()">🗑 清空</button>
-      <button class="btn btn-primary" @click="printQuote()">🖨 列印 / 存 PDF</button>
+      <button class="btn" @click="saveExcel()" title="Numbers 也能直接打開 .xlsx">📊 存 Excel</button>
+      <button class="btn" @click="saveCsv()" title="通用格式、任何試算表軟體都能開">📋 存 CSV</button>
+      <button class="btn" @click="printQuote()">🖨 列印</button>
+      <button class="btn btn-primary" @click="savePdf()" :disabled="pdfBusy" x-text="pdfBusy ? '產生中…' : '📄 存 PDF'"></button>
     </div>
   </div>
 

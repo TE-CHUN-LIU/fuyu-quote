@@ -298,6 +298,12 @@ table.items .total-cell {
 }
 
 /* === Print === */
+@page {
+  size: A4 portrait;
+  margin: 12mm 14mm;
+}
+
+/* 共用列印樣式 ── 同時觸發於 @media print 與 body.printing（PDF 產生時）*/
 @media print {
   body { background: white; font-size: 11px; }
   .app { max-width: 100%; padding: 0; margin: 0; }
@@ -328,15 +334,55 @@ table.items .total-cell {
     appearance: none;
     background: transparent !important;
   }
-  /* 把 input 框線隱藏，列印起來像填好的紙本 */
   .info-row input, .info-row textarea,
   table.items td input, table.items td select {
     border: none;
     outline: none;
   }
-  /* 不要分頁切到表格中間 */
   table.items, tr { page-break-inside: avoid; }
   .section-title, .summary, .signature-area { page-break-inside: avoid; }
-  /* 隱藏沒填的 placeholder */
   ::placeholder { color: transparent; }
 }
+
+/* PDF 產生模式 ── 同樣的樣式，但用 class 觸發 */
+body.printing { background: white; font-size: 11px; }
+body.printing .app { max-width: 210mm; padding: 0; margin: 0; }
+body.printing .toolbar,
+body.printing .no-print { display: none !important; }
+body.printing .paper {
+  box-shadow: none;
+  padding: 12mm 14mm;
+  min-height: auto;
+  border-radius: 0;
+  width: 210mm;
+}
+body.printing .header h1 { font-size: 18px; }
+body.printing .header h2 { font-size: 14px; }
+body.printing .add-row { display: none; }
+body.printing table.items th,
+body.printing table.items td {
+  padding: 3px 6px;
+  font-size: 10.5px;
+}
+body.printing .section-title { font-size: 12px; padding: 4px 8px; margin: 12px 0 4px; }
+body.printing .summary { padding: 8px 12px; margin: 12px 0; background: #fff8e0; }
+body.printing .payment-cell { padding: 6px; }
+body.printing .terms { font-size: 9.5px; padding: 8px; }
+body.printing .info-grid { gap: 4px 16px; margin-bottom: 12px; }
+body.printing .info-row { padding: 2px 0; }
+body.printing .signature-area { margin-top: 16px; gap: 16px; }
+body.printing .sig-block { padding: 10px; min-height: 100px; }
+body.printing input,
+body.printing select {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent !important;
+}
+body.printing .info-row input,
+body.printing .info-row textarea,
+body.printing table.items td input,
+body.printing table.items td select {
+  border: none;
+  outline: none;
+}
+body.printing ::placeholder { color: transparent; }

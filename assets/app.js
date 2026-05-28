@@ -24,6 +24,7 @@ function quoteApp() {
     items: [],
     bankChoice: 'cathay', // 'cathay' 或 'yuanta'
     needInvoice: false,
+    pdfBusy: false,
     addForm: {
       category: '木工',
       itemName: '',
@@ -236,12 +237,148 @@ function quoteApp() {
     },
 
     printQuote() {
-      // 列印前先把 document.title 設成有意義的檔名（瀏覽器存 PDF 預設用這個）
       const oldTitle = document.title;
       const name = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}`;
       document.title = name;
       window.print();
       setTimeout(() => { document.title = oldTitle; }, 1000);
+    },
+
+    // === Excel 匯出 ===
+    saveExcel() {
+      const wb = XLSX.utils.book_new();
+      const rows = this._buildSpreadsheetRows();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      // 欄寬設定
+      ws['!cols'] = [
+        { wch: 6 },   // 樓層
+        { wch: 30 },  // 項目
+        { wch: 6 },   // 單位
+        { wch: 8 },   // 數量
+        { wch: 10 },  // 單價
+        { wch: 12 },  // 總價
+        { wch: 20 },  // 備註
+      ];
+      // 合併儲存格（標題、付款區）會在後面用 merges 追加
+      XLSX.utils.book_append_sheet(wb, ws, '報價單');
+      const filename = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    },
+
+    saveCsv() {
+      const rows = this._buildSpreadsheetRows();
+      const csv = rows.map(r => r.map(cell => {
+        if (cell == null) return '';
+        const s = String(cell);
+        if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      }).join(',')).join('\n');
+      // 加 BOM 讓 Excel 開 csv 不亂碼
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+
+    _buildSpreadsheetRows() {
+      const r = [];
+      // 標題
+      r.push([this.company.name]);
+      r.push(['報價單']);
+      r.push([]);
+      // 工程資訊
+      r.push(['工程名稱', this.project.name, '', '', '報價日期', this.project.date]);
+      r.push(['工程地點', this.project.location, '', '', '現場聯絡', this.project.contact]);
+      r.push([]);
+      // 客戶資訊
+      r.push(['客戶名稱', this.customer.name, '', '', '聯絡電話', this.customer.phone]);
+      r.push(['公司統編', this.customer.taxId, '', '', '發票抬頭', this.customer.invoiceTitle]);
+      r.push(['客戶地址', this.customer.address]);
+      r.push([]);
+      // 項目表標頭
+      r.push(['樓層', '項目及說明', '單位', '數量', '單價', '總價', '備註']);
+      // 依分類列出
+      for (const [cat, list] of Object.entries(this.itemsByCategory)) {
+        r.push([`── ${cat} ──`]);
+        for (const it of list) {
+          r.push([
+            it.floor,
+            it.name,
+            it.unit,
+            Number(it.qty) || 0,
+            Number(it.price) || 0,
+            this.subtotal(it),
+            it.note || '',
+          ]);
+        }
+        r.push(['', `${cat}小計`, '', '', '', this.categorySubtotals[cat]]);
+      }
+      r.push([]);
+      // 合計
+      r.push(['', '工程總額（未稅）', '', '', '', this.grandTotal]);
+      if (this.needInvoice) {
+        r.push(['', '營業稅 5%', '', '', '', this.tax]);
+      }
+      r.push(['', this.needInvoice ? '總計（含稅）' : '總計（未含稅）', '', '', '', this.finalTotal]);
+      r.push([]);
+      // 三期付款
+      r.push(['', '請款一　進場時收 30%', '', '', '', this.payments.first]);
+      r.push(['', '請款二　工程進度 40%', '', '', '', this.payments.second]);
+      r.push(['', '請款三　完工後 30%', '', '', '', this.payments.third]);
+      r.push([]);
+      // 備註條款
+      r.push(['備註說明：']);
+      this.terms.forEach((t, i) => r.push([`${i + 1}.`, t]));
+      r.push([]);
+      // 公司資訊
+      r.push([`${this.company.name}　統編 ${this.company.taxId}`]);
+      r.push([`現場聯絡：${this.company.contact}　${this.company.phone}`]);
+      r.push([`付款方式：匯款／轉帳`]);
+      r.push([`銀行名稱：${this.currentBank.bankName}（${this.currentBank.bankCode}）`]);
+      r.push([`戶　　名：${this.currentBank.accountName}`]);
+      r.push([`匯款帳號：${this.currentBank.accountNo}`]);
+      return r;
+    },
+
+    async savePdf() {
+      if (this.pdfBusy) return;
+      this.pdfBusy = true;
+      // 切到列印樣式（隱藏 toolbar、no-print 元素、收緊版型）
+      document.body.classList.add('printing');
+      // 給一個 frame 讓樣式生效再 render
+      await new Promise(r => setTimeout(r, 50));
+      try {
+        const paper = document.querySelector('.paper');
+        const filename = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}.pdf`;
+        const opt = {
+          margin:       [10, 12, 10, 12], // mm: top, left, bottom, right
+          filename:     filename,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+            backgroundColor: '#ffffff',
+          },
+          jsPDF:        {
+            unit: 'mm',
+            format: 'a4',
+            orientation: 'portrait',
+            compress: true,
+          },
+          pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.section-title', '.summary', '.signature-area'] },
+        };
+        await html2pdf().set(opt).from(paper).save();
+      } catch (err) {
+        alert('產生 PDF 失敗：' + err.message);
+        console.error(err);
+      } finally {
+        document.body.classList.remove('printing');
+        this.pdfBusy = false;
+      }
     },
   };
 }
