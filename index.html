@@ -41,6 +41,8 @@
       <img src="assets/logo.png" alt="富寓室內裝潢 LOGO" class="logo">
       <div class="header-text">
         <h1 x-text="company.name"></h1>
+        <div class="company-en" x-text="company.englishName"></div>
+        <div class="company-tagline" x-text="`${company.services}　｜　${company.slogan}`"></div>
         <h2>報　價　單</h2>
       </div>
       <div class="header-spacer"></div>
@@ -109,12 +111,29 @@
       <button class="btn" @click="addCustomItem()">自訂項目…</button>
     </div>
 
-    <!-- ===== 項目表（按分類分組顯示） ===== -->
-    <template x-for="(itemList, category) in itemsByCategory" :key="category">
+    <!-- ===== 檢視控制：分組方式 + 樓層篩選（不列印） ===== -->
+    <div class="view-controls no-print" x-show="items.length > 0">
+      <span class="vc-label">檢視方式：</span>
+      <select x-model="groupMode">
+        <option value="category">依工程分類</option>
+        <option value="floor">依樓層分類</option>
+      </select>
+      <span class="vc-label">樓層篩選：</span>
+      <select @change="floorFilter = $event.target.value">
+        <option value="全部" :selected="floorFilter === '全部'">全部樓層</option>
+        <template x-for="f in floorOptions" :key="f">
+          <option :value="f" :selected="f === floorFilter" x-text="f"></option>
+        </template>
+      </select>
+      <span class="vc-hint" x-show="floorFilter !== '全部'" x-text="`（只顯示 ${floorFilter}，總計仍以全部項目計算）`"></span>
+    </div>
+
+    <!-- ===== 項目表（依選擇的方式分組顯示） ===== -->
+    <template x-for="g in groups" :key="g.key">
       <div class="category-block">
         <div class="section-title">
-          <span x-text="category + ' 工程'"></span>
-          <span class="subtotal" x-text="`小計　$ ${formatMoney(categorySubtotals[category])}`"></span>
+          <span x-text="g.label"></span>
+          <span class="subtotal" x-text="`小計　$ ${formatMoney(g.subtotal)}`"></span>
         </div>
         <div class="table-scroll">
         <table class="items">
@@ -131,20 +150,20 @@
             </tr>
           </thead>
           <tbody>
-            <template x-for="item in itemList" :key="item.id">
+            <template x-for="item in g.items" :key="item.id">
               <tr>
                 <td>
-                  <select x-model="item.floor">
+                  <select @change="item.floor = $event.target.value">
                     <template x-for="f in floorOptions" :key="f">
-                      <option :value="f" x-text="f"></option>
+                      <option :value="f" :selected="f === item.floor" x-text="f"></option>
                     </template>
                   </select>
                 </td>
                 <td><input type="text" x-model="item.name"></td>
                 <td>
-                  <select x-model="item.unit">
+                  <select @change="item.unit = $event.target.value">
                     <template x-for="u in unitOptions" :key="u">
-                      <option :value="u" x-text="u"></option>
+                      <option :value="u" :selected="u === item.unit" x-text="u"></option>
                     </template>
                   </select>
                 </td>
@@ -168,6 +187,10 @@
 
     <div x-show="items.length === 0" style="text-align:center; padding:40px; color:#999;">
       尚無項目，請從上方下拉選單新增。
+    </div>
+    <div x-show="items.length > 0 && groups.length === 0" style="text-align:center; padding:24px; color:#999;">
+      <span x-text="`${floorFilter} 目前沒有項目。`"></span>
+      <button class="btn" @click="floorFilter = '全部'">顯示全部樓層</button>
     </div>
 
     <!-- ===== 合計區 ===== -->
@@ -239,6 +262,8 @@
           </h4>
           <div class="sig-info">
             <div class="row"><span class="key">現場聯絡：</span><span x-text="`${company.contact}　${company.phone}`"></span></div>
+            <div class="row"><span class="key">公司地址：</span><span x-text="company.address"></span></div>
+            <div class="row"><span class="key">LINE　　：</span><span x-text="company.line"></span></div>
             <div class="row">
               <span class="key">付款方式：</span>
               <span>

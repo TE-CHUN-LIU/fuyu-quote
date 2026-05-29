@@ -25,6 +25,8 @@ function quoteApp() {
     bankChoice: 'cathay', // 'cathay' 或 'yuanta'
     needInvoice: false,
     isLocked: false,
+    groupMode: 'category', // 'category' 依工程分類 / 'floor' 依樓層分類
+    floorFilter: '全部',    // '全部' 或某一樓層（只篩選檢視，不影響總計）
     addForm: {
       category: '木工',
       itemName: '',
@@ -51,6 +53,31 @@ function quoteApp() {
         grouped[item.category].push(item);
       }
       return grouped;
+    },
+    // 樓層篩選後的項目（只影響表格檢視，總計仍以全部項目計算）
+    get visibleItems() {
+      if (this.floorFilter === '全部') return this.items;
+      return this.items.filter(i => i.floor === this.floorFilter);
+    },
+    // 依目前選擇的分組方式（工程 / 樓層）整理出區塊，並照固定順序排序
+    get groups() {
+      const map = {};
+      for (const item of this.visibleItems) {
+        const key = this.groupMode === 'floor' ? item.floor : item.category;
+        if (!map[key]) map[key] = [];
+        map[key].push(item);
+      }
+      const orderRef = this.groupMode === 'floor' ? this.floorOptions : this.categories;
+      const keys = Object.keys(map).sort((a, b) => {
+        const ia = orderRef.indexOf(a), ib = orderRef.indexOf(b);
+        return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+      });
+      return keys.map(key => {
+        const list = map[key];
+        const subtotal = list.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+        const label = this.groupMode === 'floor' ? `${key} 樓層` : `${key} 工程`;
+        return { key, label, items: list, subtotal };
+      });
     },
     get grandTotal() {
       return this.items.reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
@@ -90,6 +117,8 @@ function quoteApp() {
       this.$watch('items', () => this.save(), { deep: true });
       this.$watch('bankChoice', () => this.save());
       this.$watch('needInvoice', () => this.save());
+      this.$watch('groupMode', () => this.save());
+      this.$watch('floorFilter', () => this.save());
     },
 
     addItem() {
@@ -170,6 +199,8 @@ function quoteApp() {
         items: this.items,
         bankChoice: this.bankChoice,
         needInvoice: this.needInvoice,
+        groupMode: this.groupMode,
+        floorFilter: this.floorFilter,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     },
@@ -184,6 +215,8 @@ function quoteApp() {
         this.items = data.items || [];
         this.bankChoice = data.bankChoice || 'cathay';
         this.needInvoice = !!data.needInvoice;
+        this.groupMode = data.groupMode || 'category';
+        this.floorFilter = data.floorFilter || '全部';
       } catch (e) {
         console.error('Load failed', e);
       }

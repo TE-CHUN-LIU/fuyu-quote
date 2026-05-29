@@ -91,6 +91,19 @@ body {
   color: var(--primary);
   letter-spacing: 4px;
 }
+.header .company-en {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.header .company-tagline {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
 .header h2 {
   margin: 6px 0 0;
   font-size: 18px;
@@ -98,6 +111,29 @@ body {
   letter-spacing: 8px;
   font-weight: normal;
 }
+
+/* === 檢視控制（分組方式 / 樓層篩選） === */
+.view-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0 4px;
+  padding: 8px 12px;
+  background: #f0f4f9;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.view-controls .vc-label { font-weight: 600; color: var(--text-muted); }
+.view-controls select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+}
+.view-controls .vc-hint { color: var(--accent); font-size: 12px; }
 
 /* === Info Grid (工程/客戶資料) === */
 .info-grid {
