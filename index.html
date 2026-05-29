@@ -111,11 +111,12 @@
 
     <!-- ===== 項目表（按分類分組顯示） ===== -->
     <template x-for="(itemList, category) in itemsByCategory" :key="category">
-      <div>
+      <div class="category-block">
         <div class="section-title">
           <span x-text="category + ' 工程'"></span>
           <span class="subtotal" x-text="`小計　$ ${formatMoney(categorySubtotals[category])}`"></span>
         </div>
+        <div class="table-scroll">
         <table class="items">
           <thead>
             <tr>
@@ -161,6 +162,7 @@
             </template>
           </tbody>
         </table>
+        </div>
       </div>
     </template>
 

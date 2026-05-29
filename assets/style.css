@@ -339,6 +339,129 @@ body.locked .app { padding-top: 8px; }
 }
 .unlock-fab:hover { background: var(--primary-light); }
 
+/* === 手機 RWD === */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 768px) {
+  body { font-size: 13px; }
+  .app { padding: 10px; }
+  .paper { padding: 16px 14px; border-radius: 6px; min-height: auto; }
+
+  /* Toolbar：標題置頂，按鈕橫向捲動 */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .toolbar-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .toolbar-actions .btn {
+    flex: 1 1 calc(50% - 3px);
+    padding: 8px 6px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  /* Header：縮小 logo 與字級 */
+  .header {
+    grid-template-columns: 56px 1fr 0;
+    gap: 10px;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+  .header .logo { width: 56px; }
+  .header-spacer { display: none; }
+  .header h1 { font-size: 18px; letter-spacing: 2px; }
+  .header h2 { font-size: 14px; letter-spacing: 4px; margin-top: 4px; }
+
+  /* 工程/客戶資料：改單欄 */
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .info-row { padding: 4px 0; }
+  .info-row label { min-width: 72px; font-size: 13px; }
+  .info-row input { font-size: 13px; }
+
+  /* 新增項目區：下拉全寬堆疊 */
+  .add-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .add-row > * { width: 100%; }
+  .add-row select,
+  .add-row input { min-width: 0; }
+  .add-row .btn { width: 100%; }
+
+  /* 區段標題 */
+  .section-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    font-size: 14px;
+    padding: 8px 10px;
+    margin: 16px 0 8px;
+  }
+  .section-title .subtotal { font-size: 13px; }
+
+  /* 項目表：橫向捲動避免被擠爆 */
+  .table-scroll {
+    margin: 0 -14px 12px;          /* 撐滿 paper 邊到邊，捲動更直覺 */
+    padding: 0 14px;
+  }
+  table.items {
+    min-width: 720px;              /* 維持原本欄位寬比，超出就捲動 */
+    font-size: 12px;
+  }
+  table.items th, table.items td { padding: 4px 6px; }
+
+  /* 合計區 */
+  .summary { padding: 12px 14px; }
+  .summary-row { font-size: 13px; }
+  .summary-row.total { font-size: 16px; }
+  .payment-schedule {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* 簽章 */
+  .signature-area {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .sig-block { min-height: auto; padding: 12px; }
+  .sig-block h4 { font-size: 13px; }
+  .sig-block h4 span[style*="float:right"] {
+    float: none !important;
+    display: block;
+    margin-top: 4px;
+  }
+  .sig-info .key { min-width: 70px; }
+  .bank-selector { display: block; margin-top: 4px; }
+  .bank-selector select { width: 100%; margin-top: 2px; }
+
+  /* 解鎖鈕貼右下 */
+  .unlock-fab {
+    top: auto;
+    bottom: 16px;
+    right: 16px;
+    padding: 12px 18px;
+  }
+}
+
+@media (max-width: 380px) {
+  .paper { padding: 14px 10px; }
+  .table-scroll { margin: 0 -10px 12px; padding: 0 10px; }
+  .header h1 { font-size: 16px; letter-spacing: 1px; }
+  .header h2 { font-size: 13px; letter-spacing: 3px; }
+  .toolbar-actions .btn { font-size: 11px; }
+}
+
 /* === Print === */
 @page {
   size: A4 portrait;
