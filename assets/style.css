@@ -374,21 +374,31 @@ table.items .total-cell {
   background: white;
 }
 
-/* === Lock 預覽模式（編輯中切到乾淨檢視，方便截圖/分享） === */
-body.locked .no-print { display: none !important; }
-body.locked ::placeholder { color: transparent !important; }
+/* === Lock 預覽模式 / 匯出（PDF·PNG）時切到乾淨檢視 === */
+body.locked .no-print,
+body.exporting .no-print { display: none !important; }
+body.locked ::placeholder,
+body.exporting ::placeholder { color: transparent !important; }
 body.locked .info-row input,
 body.locked .info-row textarea,
 body.locked table.items td input,
-body.locked table.items td select {
+body.locked table.items td select,
+body.locked table.items td textarea,
+body.exporting .info-row input,
+body.exporting .info-row textarea,
+body.exporting table.items td input,
+body.exporting table.items td select,
+body.exporting table.items td textarea {
   outline: none;
   background: transparent !important;
   -webkit-appearance: none;
   appearance: none;
   pointer-events: none;
 }
-body.locked input[type=checkbox] { pointer-events: none; }
+body.locked input[type=checkbox],
+body.exporting input[type=checkbox] { pointer-events: none; }
 body.locked .app { padding-top: 8px; }
+body.exporting .col-resizer { display: none !important; }
 
 .unlock-fab {
   position: fixed;

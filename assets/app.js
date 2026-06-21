@@ -380,6 +380,92 @@ function quoteApp() {
       URL.revokeObjectURL(url);
     },
 
+    // === PDF / PNG 匯出 ===
+    _exportName() {
+      return `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}`;
+    },
+
+    async _capturePaper() {
+      if (typeof html2canvas === 'undefined') {
+        alert('截圖元件尚未載入完成，請稍候幾秒或重新整理再試。');
+        return null;
+      }
+      const src = document.querySelector('.paper');
+      const clone = src.cloneNode(true);
+
+      // 把表單欄位換成純文字，確保 html2canvas 一定畫得出內容（textarea/select 直接截常會空白）
+      clone.querySelectorAll('input, select, textarea').forEach(f => {
+        if (f.type === 'checkbox' || f.type === 'file') return;
+        let text = '';
+        if (f.tagName === 'SELECT') {
+          const opt = f.options[f.selectedIndex];
+          text = opt ? opt.text : f.value;
+        } else {
+          text = f.value;
+        }
+        const span = document.createElement('div');
+        span.textContent = text;
+        span.style.cssText = 'white-space:pre-wrap;word-break:break-word;font:inherit;padding:2px;min-height:1em;';
+        if (f.type === 'number') span.style.textAlign = 'right';
+        f.replaceWith(span);
+      });
+
+      // 離屏容器，沿用原寬度
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `position:absolute; left:-10000px; top:0; width:${src.offsetWidth}px; background:#fff;`;
+      wrap.appendChild(clone);
+      document.body.appendChild(wrap);
+      document.body.classList.add('exporting');
+      await new Promise(r => setTimeout(r, 30));
+
+      let canvas = null;
+      try {
+        canvas = await html2canvas(clone, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          windowWidth: src.offsetWidth,
+        });
+      } catch (e) {
+        alert('產生影像失敗：' + e.message);
+      } finally {
+        document.body.classList.remove('exporting');
+        wrap.remove();
+      }
+      return canvas;
+    },
+
+    async savePng() {
+      const canvas = await this._capturePaper();
+      if (!canvas) return;
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = this._exportName() + '.png';
+      a.click();
+    },
+
+    async savePdf() {
+      const canvas = await this._capturePaper();
+      if (!canvas) return;
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageW = 210, pageH = 297;
+      const imgW = pageW;
+      const imgH = canvas.height * imgW / canvas.width;
+      let heightLeft = imgH;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
+      heightLeft -= pageH;
+      while (heightLeft > 0) {
+        position -= pageH;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
+        heightLeft -= pageH;
+      }
+      pdf.save(this._exportName() + '.pdf');
+    },
+
     _buildSpreadsheetRows() {
       const r = [];
       // 標題

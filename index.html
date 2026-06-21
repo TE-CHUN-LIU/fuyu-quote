@@ -6,6 +6,8 @@
   <title>富寓室內裝潢公司報價單</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="assets/data.js"></script>
   <script src="assets/app.js"></script>
@@ -22,6 +24,8 @@
         📤 匯入存檔
         <input type="file" accept=".json" @change="importJson($event)" style="display:none;">
       </label>
+      <button class="btn" @click="savePdf()" title="把報價單存成 A4 PDF（自動隱藏編輯介面）">📄 存 PDF</button>
+      <button class="btn" @click="savePng()" title="把報價單存成 PNG 圖片，可直接傳 LINE">🖼 存 PNG</button>
       <button class="btn" @click="saveExcel()" title="Numbers 也能直接打開 .xlsx">📊 存 Excel</button>
       <button class="btn" @click="saveCsv()" title="通用格式、任何試算表軟體都能開">📋 存 CSV</button>
       <button class="btn" @click="toggleLock()" title="切換預覽模式（藏下拉/placeholder，方便截圖分享）">🔒 鎖定預覽</button>
