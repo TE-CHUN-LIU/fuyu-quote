@@ -17,16 +17,15 @@
   <div class="toolbar no-print">
     <div><strong>富寓報價單編輯器</strong>　<span style="color:#888;font-size:12px;">自動暫存中</span></div>
     <div class="toolbar-actions">
-      <button class="btn" @click="exportJson()">📥 匯出 JSON</button>
+      <button class="btn btn-primary" @click="exportJson()" title="把目前報價單存成檔案，下次用『匯入存檔』叫回來繼續編輯">💾 存檔</button>
       <label class="btn" style="cursor:pointer;">
-        📤 匯入 JSON
+        📤 匯入存檔
         <input type="file" accept=".json" @change="importJson($event)" style="display:none;">
       </label>
-      <button class="btn btn-danger" @click="clearAll()">🗑 清空</button>
       <button class="btn" @click="saveExcel()" title="Numbers 也能直接打開 .xlsx">📊 存 Excel</button>
       <button class="btn" @click="saveCsv()" title="通用格式、任何試算表軟體都能開">📋 存 CSV</button>
       <button class="btn" @click="toggleLock()" title="切換預覽模式（藏下拉/placeholder，方便截圖分享）">🔒 鎖定預覽</button>
-      <button class="btn btn-primary" @click="printQuote()" title="瀏覽器列印對話框可選『另存為 PDF』（A4 直立）">🖨 列印 / 存 PDF</button>
+      <button class="btn btn-danger" @click="clearAll()">🗑 清空</button>
     </div>
   </div>
 
@@ -140,12 +139,12 @@
           <thead>
             <tr>
               <th class="col-floor">樓層</th>
-              <th>項目及說明</th>
+              <th class="col-name">項目及說明</th>
               <th class="col-unit">單位</th>
               <th class="col-qty">數量</th>
               <th class="col-price">單價</th>
               <th class="col-subtotal">總價</th>
-              <th>備註</th>
+              <th class="col-note">備註</th>
               <th class="col-action no-print">操作</th>
             </tr>
           </thead>
@@ -159,7 +158,7 @@
                     </template>
                   </select>
                 </td>
-                <td><input type="text" x-model="item.name"></td>
+                <td><textarea x-model="item.name" rows="1"></textarea></td>
                 <td>
                   <select @change="item.unit = $event.target.value">
                     <template x-for="u in unitOptions" :key="u">
@@ -170,7 +169,7 @@
                 <td><input type="number" x-model.number="item.qty" min="0" step="0.5"></td>
                 <td><input type="number" x-model.number="item.price" min="0"></td>
                 <td class="col-subtotal total-cell" x-text="formatMoney(subtotal(item))"></td>
-                <td><input type="text" x-model="item.note" placeholder=""></td>
+                <td><textarea x-model="item.note" rows="1" placeholder=""></textarea></td>
                 <td class="no-print" style="white-space:nowrap;">
                   <button class="btn" @click="moveUp(item.id)" title="上移" style="padding:2px 6px;">↑</button>
                   <button class="btn" @click="moveDown(item.id)" title="下移" style="padding:2px 6px;">↓</button>

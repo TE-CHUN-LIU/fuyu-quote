@@ -192,6 +192,7 @@ table.items {
   border-collapse: collapse;
   margin-bottom: 8px;
   font-size: 13px;
+  table-layout: fixed;
 }
 table.items th, table.items td {
   border: 1px solid var(--border);
@@ -206,7 +207,8 @@ table.items th {
   text-align: center;
 }
 table.items td input,
-table.items td select {
+table.items td select,
+table.items td textarea {
   width: 100%;
   border: none;
   background: transparent;
@@ -214,18 +216,31 @@ table.items td select {
   font-family: inherit;
   padding: 2px;
 }
-table.items td input:focus, table.items td select:focus {
+table.items td input:focus, table.items td select:focus, table.items td textarea:focus {
   outline: 1px dashed var(--primary);
   background: #fffae0;
 }
 table.items td input[type=number] { text-align: right; }
+/* 項目與備註用 textarea：文字完整換行、依內容自動長高 */
+table.items td textarea {
+  resize: vertical;
+  field-sizing: content;
+  min-height: 1.7em;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+}
 table.items tr:nth-child(even) td { background: var(--table-row-alt); }
-table.items .col-floor { width: 60px; }
-table.items .col-unit { width: 60px; }
-table.items .col-qty { width: 70px; }
-table.items .col-price { width: 90px; }
-table.items .col-subtotal { width: 100px; text-align: right; font-weight: 600; }
-table.items .col-action { width: 40px; text-align: center; }
+table.items td { vertical-align: top; }
+table.items .col-floor { width: 58px; }
+table.items .col-name { width: 150px; }
+table.items .col-unit { width: 52px; }
+table.items .col-qty { width: 56px; }
+table.items .col-price { width: 78px; }
+table.items .col-subtotal { width: 92px; text-align: right; font-weight: 600; }
+/* 備註不設寬度：固定欄分配完後，剩餘空間全給備註 */
+table.items .col-action { width: 84px; text-align: center; }
 table.items .total-cell {
   text-align: right;
   padding-right: 8px;
