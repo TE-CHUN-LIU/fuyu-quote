@@ -385,51 +385,133 @@ function quoteApp() {
       return `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}`;
     },
 
+    _esc(s) {
+      return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
+    // 生成一份乾淨唯讀版面（inline 樣式，避免可編輯表格的截圖問題）
+    _buildExportNode() {
+      const co = this.company, cu = this.customer, pr = this.project, c = this.cols;
+      const m = n => this.formatMoney(n);
+      const e = s => this._esc(s);
+      const cols = [
+        ['floor', '樓層', '58px', 'center'],
+        ['name', '項目及說明', '', 'left'],
+        ['unit', '單位', '54px', 'center'],
+        ['qty', '數量', '58px', 'right'],
+        ['price', '單價', '80px', 'right'],
+        ['subtotal', '總價', '92px', 'right'],
+        ['note', '備註', '200px', 'left'],
+      ].filter(x => c[x[0]].show);
+      const n = cols.length;
+
+      const th = cols.map(x =>
+        `<th style="border:1px solid #ccc;padding:6px 8px;background:#f0f0f0;font-size:12px;${x[2] ? 'width:' + x[2] + ';' : ''}text-align:${x[3]}">${x[1]}</th>`
+      ).join('');
+
+      let rows = '';
+      for (const g of this.groups) {
+        rows += `<tr><td colspan="${n}" style="border:1px solid #ccc;padding:6px 8px;background:#eaf0f6;font-weight:600;font-size:13px;">${e(g.label)}<span style="float:right">小計 $ ${m(g.subtotal)}</span></td></tr>`;
+        for (const it of g.items) {
+          const v = { floor: it.floor, name: it.name, unit: it.unit, qty: (Number(it.qty) || 0), price: m(it.price), subtotal: m(this.subtotal(it)), note: it.note };
+          rows += '<tr>' + cols.map(x =>
+            `<td style="border:1px solid #ccc;padding:5px 8px;font-size:12px;text-align:${x[3]};white-space:pre-wrap;word-break:break-word;vertical-align:top;">${e(v[x[0]])}</td>`
+          ).join('') + '</tr>';
+        }
+      }
+
+      const infoRow = (l1, v1, l2, v2) =>
+        `<tr><td style="padding:5px 8px;color:#555;width:80px;">${l1}</td><td style="padding:5px 8px;border-bottom:1px solid #eee;">${e(v1)}</td><td style="padding:5px 8px;color:#555;width:80px;">${l2 || ''}</td><td style="padding:5px 8px;border-bottom:1px solid #eee;">${e(v2 || '')}</td></tr>`;
+      const taxRow = this.needInvoice ? `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>營業稅 5%</span><span>$ ${m(this.tax)}</span></div>` : '';
+      const termsHtml = this.terms.map(t => `<li style="margin:3px 0;font-size:11px;color:#444;">${e(t)}</li>`).join('');
+      const bank = this.currentBank;
+
+      const node = document.createElement('div');
+      node.style.cssText = "width:820px;background:#fff;padding:28px 32px;font-family:'PingFang TC','Heiti TC',sans-serif;color:#1a1a1a;box-sizing:border-box;";
+      node.innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #2e4a6b;padding-bottom:12px;">
+          <img src="assets/logo.png" style="width:60px;height:60px;object-fit:contain;">
+          <div style="flex:1;text-align:center;">
+            <div style="font-size:20px;font-weight:700;">${e(co.name)}</div>
+            <div style="font-size:12px;color:#888;">${e(co.englishName)}</div>
+            <div style="font-size:12px;color:#666;margin-top:2px;">${e(co.services)}　｜　${e(co.slogan)}</div>
+            <div style="font-size:18px;letter-spacing:8px;font-weight:700;margin-top:6px;">報　價　單</div>
+          </div>
+          <div style="width:60px;"></div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;">
+          ${infoRow('工程名稱', pr.name, '報價日期', pr.date)}
+          ${infoRow('工程地點', pr.location, '現場聯絡', pr.contact)}
+          ${infoRow('客戶名稱', cu.name, '聯絡電話', cu.phone)}
+          ${infoRow('公司統編', cu.taxId, '發票抬頭', cu.invoiceTitle)}
+          ${infoRow('客戶地址', cu.address, '', '')}
+        </table>
+        <table style="width:100%;border-collapse:collapse;margin-top:6px;"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>
+        <div style="margin-top:10px;margin-left:auto;width:300px;font-size:13px;">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>工程總額（未稅）</span><span>$ ${m(this.grandTotal)}</span></div>
+          ${taxRow}
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid #2e4a6b;font-weight:700;font-size:15px;"><span>${this.needInvoice ? '總計（含稅）' : '總計（未含稅）'}</span><span>$ ${m(this.finalTotal)}</span></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px;text-align:center;">
+          <div style="flex:1;border:1px solid #ddd;padding:8px;font-size:12px;"><div style="color:#888;">請款一　進場 30%</div><div style="font-weight:700;margin-top:4px;">$ ${m(this.payments.first)}</div></div>
+          <div style="flex:1;border:1px solid #ddd;padding:8px;font-size:12px;"><div style="color:#888;">請款二　進度 40%</div><div style="font-weight:700;margin-top:4px;">$ ${m(this.payments.second)}</div></div>
+          <div style="flex:1;border:1px solid #ddd;padding:8px;font-size:12px;"><div style="color:#888;">請款三　完工 30%</div><div style="font-weight:700;margin-top:4px;">$ ${m(this.payments.third)}</div></div>
+        </div>
+        <div style="margin-top:16px;"><strong style="font-size:12px;">備註說明：</strong><ol style="margin:6px 0;padding-left:20px;">${termsHtml}</ol></div>
+        <div style="display:flex;gap:16px;margin-top:14px;">
+          <div style="flex:1;border:1px solid #ddd;padding:12px;font-size:12px;line-height:1.9;">
+            <div style="font-weight:700;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:8px;">客戶確認章戳</div>
+            <div>客戶名稱：${e(cu.name)}</div><div>聯絡電話：${e(cu.phone)}</div>
+            <div>統一編號：${e(cu.taxId)}</div><div>發票抬頭：${e(cu.invoiceTitle)}</div>
+            <div>地　　址：${e(cu.address)}</div>
+            <div style="margin-top:18px;color:#999;">（請於此處簽名或蓋章）</div>
+          </div>
+          <div style="flex:1;border:1px solid #ddd;padding:12px;font-size:12px;line-height:1.9;">
+            <div style="font-weight:700;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:8px;">${e(co.name)}<span style="float:right;font-weight:400;color:#888;">統編 ${e(co.taxId)}</span></div>
+            <div>現場聯絡：${e(co.contact)}　${e(co.phone)}</div>
+            <div>公司地址：${e(co.address)}</div>
+            <div>LINE　　：${e(co.line)}</div>
+            <div>付款方式：匯款／轉帳</div>
+            <div>銀行名稱：${e(bank.bankName)}（${e(bank.bankCode)}）</div>
+            <div>戶　　名：${e(bank.accountName)}</div>
+            <div>匯款帳號：${e(bank.accountNo)}</div>
+            <div style="margin-top:14px;color:#999;">（公司用印）</div>
+          </div>
+        </div>
+      `;
+      return node;
+    },
+
     async _capturePaper() {
       if (typeof html2canvas === 'undefined') {
         alert('截圖元件尚未載入完成，請稍候幾秒或重新整理再試。');
         return null;
       }
-      const src = document.querySelector('.paper');
-      const clone = src.cloneNode(true);
-
-      // 把表單欄位換成純文字，確保 html2canvas 一定畫得出內容（textarea/select 直接截常會空白）
-      clone.querySelectorAll('input, select, textarea').forEach(f => {
-        if (f.type === 'checkbox' || f.type === 'file') return;
-        let text = '';
-        if (f.tagName === 'SELECT') {
-          const opt = f.options[f.selectedIndex];
-          text = opt ? opt.text : f.value;
-        } else {
-          text = f.value;
-        }
-        const span = document.createElement('div');
-        span.textContent = text;
-        span.style.cssText = 'white-space:pre-wrap;word-break:break-word;font:inherit;padding:2px;min-height:1em;';
-        if (f.type === 'number') span.style.textAlign = 'right';
-        f.replaceWith(span);
-      });
-
-      // 離屏容器，沿用原寬度
+      const node = this._buildExportNode();
       const wrap = document.createElement('div');
-      wrap.style.cssText = `position:absolute; left:-10000px; top:0; width:${src.offsetWidth}px; background:#fff;`;
-      wrap.appendChild(clone);
+      wrap.style.cssText = 'position:fixed; left:-10000px; top:0; z-index:-1;';
+      wrap.appendChild(node);
       document.body.appendChild(wrap);
-      document.body.classList.add('exporting');
-      await new Promise(r => setTimeout(r, 30));
+
+      // 等 logo 圖片載入，避免截到一半
+      const img = node.querySelector('img');
+      if (img && !img.complete) {
+        await new Promise(res => { img.onload = res; img.onerror = res; });
+      }
+      await new Promise(r => setTimeout(r, 50));
 
       let canvas = null;
       try {
-        canvas = await html2canvas(clone, {
+        canvas = await html2canvas(node, {
           scale: 2,
           backgroundColor: '#ffffff',
           useCORS: true,
-          windowWidth: src.offsetWidth,
+          windowWidth: node.offsetWidth,
+          windowHeight: node.offsetHeight,
         });
       } catch (e) {
         alert('產生影像失敗：' + e.message);
       } finally {
-        document.body.classList.remove('exporting');
         wrap.remove();
       }
       return canvas;
