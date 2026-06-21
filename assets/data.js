@@ -1,5 +1,5 @@
 // 富寓室內裝潢公司報價單 ── 項目目錄
-// 來源：蘆竹案實際報價單（27 個項目）+ 常見裝潢項目補充
+// 來源：蘆竹案實際報價單（27 個項目）+ 木作報價轉錄案（19 項補充）+ 常見裝潢項目補充
 // 格式：{ category, name, unit, defaultPrice, note }
 
 const ITEM_LIBRARY = [
@@ -23,6 +23,27 @@ const ITEM_LIBRARY = [
   { category: '木工', name: '玄關櫃', unit: '尺', defaultPrice: 0, note: '待確認' },
   { category: '木工', name: '電視牆', unit: '式', defaultPrice: 0, note: '立面圖確認後估價' },
   { category: '木工', name: '部分隔間', unit: '式', defaultPrice: 0, note: '立面圖確認後估價' },
+
+  // ===== A2. 木工（木作報價轉錄案補充） =====
+  { category: '木工', name: '維修口／活動口', unit: '組', defaultPrice: 1000, note: '依現況開立' },
+  { category: '木工', name: '木料及室內除蟲', unit: '坪', defaultPrice: 0, note: '依坪數估價' },
+  { category: '木工', name: '造型半高隔間', unit: '處', defaultPrice: 1800 },
+  { category: '木工', name: '隔間／屏風結構加強', unit: '處', defaultPrice: 500 },
+  { category: '木工', name: '弧形矮隔間（含1/4圓實木條）', unit: '尺', defaultPrice: 1800 },
+  { category: '木工', name: '空調底座窗簾盒', unit: '尺', defaultPrice: 600, note: '永新F1角材、木心板、矽酸鈣板' },
+  { category: '木工', name: '包樑（深50cm內無圓角）', unit: '尺', defaultPrice: 600 },
+  { category: '木工', name: '造型弧形角', unit: '處', defaultPrice: 3000 },
+  { category: '木工', name: '木作電視牆（含線路暗管通道）', unit: '尺', defaultPrice: 1800 },
+  { category: '木工', name: '電視牆側邊弧形木作（S角）', unit: '座', defaultPrice: 6000 },
+  { category: '木工', name: '1/4圓實木收邊條', unit: '支', defaultPrice: 300 },
+  { category: '木工', name: '鋁條燈燈溝（8*9mm預埋）', unit: '尺', defaultPrice: 250 },
+  { category: '木工', name: '矽膠燈燈溝（10*10mm預埋）', unit: '尺', defaultPrice: 250 },
+  { category: '木工', name: '燈盒（10*10cm含燈溝）', unit: '尺', defaultPrice: 500 },
+  { category: '木工', name: '吊燈吊掛結構加強', unit: '處', defaultPrice: 500 },
+  { category: '木工', name: '儲藏室隔間', unit: '尺', defaultPrice: 1800, note: '永新F1角材、夾板、矽酸鈣板' },
+  { category: '木工', name: '外開門片（3.6cm厚含安裝）', unit: '片', defaultPrice: 8000 },
+  { category: '木工', name: '隱藏鉸鏈（英國KANSWAY）', unit: '組', defaultPrice: 3500 },
+  { category: '木工', name: '門崁把手', unit: '組', defaultPrice: 0, note: '依實際選材計價' },
 
   // ===== B. 泥作（沿用 + 補充） =====
   { category: '泥作', name: '鐵道磚施作', unit: '式', defaultPrice: 35000 },
@@ -91,7 +112,7 @@ const ITEM_LIBRARY = [
 const FLOOR_OPTIONS = ['1F', '2F', '3F', '4F', '5F', '6F', 'B1', '頂樓', '全棟', '室外', '其他'];
 
 // 單位選項（新增項目用）
-const UNIT_OPTIONS = ['尺', '坪', '式', '樘', '個', '盞', '組', '處', '車', '片', '公分', '公尺'];
+const UNIT_OPTIONS = ['尺', '坪', '式', '樘', '個', '盞', '組', '處', '座', '支', '車', '片', '公分', '公尺'];
 
 // 公司資訊
 const COMPANY_INFO = {
