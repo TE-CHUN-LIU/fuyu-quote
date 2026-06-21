@@ -32,6 +32,25 @@ function quoteApp() {
       itemName: '',
       floor: '1F',
     },
+    // 欄位定義（顯示/隱藏 + 寬度，順序固定）
+    colDefs: [
+      { key: 'floor', label: '樓層' },
+      { key: 'name', label: '項目及說明' },
+      { key: 'unit', label: '單位' },
+      { key: 'qty', label: '數量' },
+      { key: 'price', label: '單價' },
+      { key: 'subtotal', label: '總價' },
+      { key: 'note', label: '備註' },
+    ],
+    cols: {
+      floor: { show: true, w: 58 },
+      name: { show: true, w: 150 },
+      unit: { show: true, w: 52 },
+      qty: { show: true, w: 56 },
+      price: { show: true, w: 78 },
+      subtotal: { show: true, w: 92 },
+      note: { show: true, w: 220 },
+    },
 
     // === Data Sources ===
     library: ITEM_LIBRARY,
@@ -119,6 +138,7 @@ function quoteApp() {
       this.$watch('needInvoice', () => this.save());
       this.$watch('groupMode', () => this.save());
       this.$watch('floorFilter', () => this.save());
+      this.$watch('cols', () => this.save(), { deep: true });
     },
 
     addItem() {
@@ -192,6 +212,39 @@ function quoteApp() {
       return new Intl.NumberFormat('zh-TW').format(Math.round(n || 0));
     },
 
+    // 拖拉欄位標題右緣調整寬度
+    startResize(key, ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const startX = ev.clientX;
+      const startW = this.cols[key].w;
+      const onMove = (e) => {
+        const dw = e.clientX - startX;
+        this.cols[key].w = Math.max(36, Math.round(startW + dw));
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+        this.save();
+      };
+      document.body.style.cursor = 'col-resize';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    },
+
+    // 欄位寬度與顯示還原預設
+    resetCols() {
+      const def = {
+        floor: { show: true, w: 58 }, name: { show: true, w: 150 },
+        unit: { show: true, w: 52 }, qty: { show: true, w: 56 },
+        price: { show: true, w: 78 }, subtotal: { show: true, w: 92 },
+        note: { show: true, w: 220 },
+      };
+      Object.keys(def).forEach(k => { this.cols[k].show = def[k].show; this.cols[k].w = def[k].w; });
+      this.save();
+    },
+
     save() {
       const data = {
         project: this.project,
@@ -201,6 +254,7 @@ function quoteApp() {
         needInvoice: this.needInvoice,
         groupMode: this.groupMode,
         floorFilter: this.floorFilter,
+        cols: this.cols,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     },
@@ -217,6 +271,11 @@ function quoteApp() {
         this.needInvoice = !!data.needInvoice;
         this.groupMode = data.groupMode || 'category';
         this.floorFilter = data.floorFilter || '全部';
+        if (data.cols) {
+          for (const k of Object.keys(this.cols)) {
+            if (data.cols[k]) Object.assign(this.cols[k], data.cols[k]);
+          }
+        }
       } catch (e) {
         console.error('Load failed', e);
       }

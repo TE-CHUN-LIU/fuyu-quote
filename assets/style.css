@@ -239,8 +239,24 @@ table.items .col-unit { width: 52px; }
 table.items .col-qty { width: 56px; }
 table.items .col-price { width: 78px; }
 table.items .col-subtotal { width: 92px; text-align: right; font-weight: 600; }
-/* 備註不設寬度：固定欄分配完後，剩餘空間全給備註 */
 table.items .col-action { width: 84px; text-align: center; }
+
+/* 可調寬欄位標題 + 拖曳把手 */
+table.items th { position: relative; }
+table.items th.col-resizable { overflow: hidden; text-overflow: ellipsis; }
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+}
+.col-resizer:hover { background: var(--primary); opacity: 0.45; }
+/* 顯示欄位勾選 */
+.col-toggle { margin-right: 12px; white-space: nowrap; font-size: 13px; cursor: pointer; }
+.col-toggle input { vertical-align: middle; }
 table.items .total-cell {
   text-align: right;
   padding-right: 8px;

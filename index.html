@@ -127,6 +127,18 @@
       <span class="vc-hint" x-show="floorFilter !== '全部'" x-text="`（只顯示 ${floorFilter}，總計仍以全部項目計算）`"></span>
     </div>
 
+    <!-- ===== 欄位顯示/隱藏 + 欄寬控制（不列印） ===== -->
+    <div class="view-controls no-print" x-show="items.length > 0">
+      <span class="vc-label">顯示欄位：</span>
+      <template x-for="c in colDefs" :key="c.key">
+        <label class="col-toggle">
+          <input type="checkbox" x-model="cols[c.key].show"> <span x-text="c.label"></span>
+        </label>
+      </template>
+      <button class="btn" @click="resetCols()" style="padding:2px 10px;">↺ 欄寬重設</button>
+      <span class="vc-hint">　拖欄位標題右緣可手動調寬度</span>
+    </div>
+
     <!-- ===== 項目表（依選擇的方式分組顯示） ===== -->
     <template x-for="g in groups" :key="g.key">
       <div class="category-block">
@@ -138,38 +150,37 @@
         <table class="items">
           <thead>
             <tr>
-              <th class="col-floor">樓層</th>
-              <th class="col-name">項目及說明</th>
-              <th class="col-unit">單位</th>
-              <th class="col-qty">數量</th>
-              <th class="col-price">單價</th>
-              <th class="col-subtotal">總價</th>
-              <th class="col-note">備註</th>
+              <template x-for="c in colDefs" :key="c.key">
+                <th class="col-resizable" x-show="cols[c.key].show" :style="`width:${cols[c.key].w}px`">
+                  <span x-text="c.label"></span>
+                  <span class="col-resizer" @mousedown="startResize(c.key, $event)" title="拖曳調整寬度"></span>
+                </th>
+              </template>
               <th class="col-action no-print">操作</th>
             </tr>
           </thead>
           <tbody>
             <template x-for="item in g.items" :key="item.id">
               <tr>
-                <td>
+                <td x-show="cols.floor.show">
                   <select @change="item.floor = $event.target.value">
                     <template x-for="f in floorOptions" :key="f">
                       <option :value="f" :selected="f === item.floor" x-text="f"></option>
                     </template>
                   </select>
                 </td>
-                <td><textarea x-model="item.name" rows="1"></textarea></td>
-                <td>
+                <td x-show="cols.name.show"><textarea x-model="item.name" rows="1"></textarea></td>
+                <td x-show="cols.unit.show">
                   <select @change="item.unit = $event.target.value">
                     <template x-for="u in unitOptions" :key="u">
                       <option :value="u" :selected="u === item.unit" x-text="u"></option>
                     </template>
                   </select>
                 </td>
-                <td><input type="number" x-model.number="item.qty" min="0" step="0.5"></td>
-                <td><input type="number" x-model.number="item.price" min="0"></td>
-                <td class="col-subtotal total-cell" x-text="formatMoney(subtotal(item))"></td>
-                <td><textarea x-model="item.note" rows="1" placeholder=""></textarea></td>
+                <td x-show="cols.qty.show"><input type="number" x-model.number="item.qty" min="0" step="0.5"></td>
+                <td x-show="cols.price.show"><input type="number" x-model.number="item.price" min="0"></td>
+                <td class="col-subtotal total-cell" x-show="cols.subtotal.show" x-text="formatMoney(subtotal(item))"></td>
+                <td x-show="cols.note.show"><textarea x-model="item.note" rows="1" placeholder=""></textarea></td>
                 <td class="no-print" style="white-space:nowrap;">
                   <button class="btn" @click="moveUp(item.id)" title="上移" style="padding:2px 6px;">↑</button>
                   <button class="btn" @click="moveDown(item.id)" title="下移" style="padding:2px 6px;">↓</button>
