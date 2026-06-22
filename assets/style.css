@@ -632,3 +632,25 @@ body.printing table.items td select {
   outline: none;
 }
 body.printing ::placeholder { color: transparent; }
+
+/* ===== 雲端報價單清單 ===== */
+[x-cloak] { display: none !important; }
+.cloud-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0, 0, 0, .45);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow: auto;
+}
+.cloud-panel {
+  background: #fff; border-radius: 10px;
+  width: 100%; max-width: 560px; padding: 18px 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .25);
+}
+.cloud-panel-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.cloud-list { width: 100%; border-collapse: collapse; }
+.cloud-list td { padding: 10px 6px; border-bottom: 1px solid #eee; vertical-align: middle; }
+.cloud-list tr.is-current { background: #fff8e1; }
+.cloud-list .btn { margin-left: 4px; }

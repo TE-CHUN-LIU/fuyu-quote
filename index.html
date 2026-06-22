@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="assets/data.js"></script>
   <script src="assets/app.js"></script>
@@ -19,7 +20,9 @@
   <div class="toolbar no-print">
     <div><strong>富寓報價單編輯器</strong>　<span style="color:#888;font-size:12px;">自動暫存中</span></div>
     <div class="toolbar-actions">
-      <button class="btn btn-primary" @click="exportJson()" title="把目前報價單存成檔案，下次用『匯入存檔』叫回來繼續編輯">💾 存檔</button>
+      <button class="btn btn-primary" @click="cloudSave()" :disabled="cloud.busy" x-show="cloud.ready" title="存到雲端，換手機/電腦都叫得回來">☁️ 存到雲端</button>
+      <button class="btn" @click="openCloud()" :disabled="cloud.busy" x-show="cloud.ready" title="叫出雲端存過的報價單">📂 雲端清單</button>
+      <button class="btn" @click="exportJson()" title="把目前報價單存成檔案，下次用『匯入存檔』叫回來繼續編輯">💾 存檔</button>
       <label class="btn" style="cursor:pointer;">
         📤 匯入存檔
         <input type="file" accept=".json" @change="importJson($event)" style="display:none;">
@@ -30,6 +33,39 @@
       <button class="btn" @click="saveCsv()" title="通用格式、任何試算表軟體都能開">📋 存 CSV</button>
       <button class="btn" @click="toggleLock()" title="切換預覽模式（藏下拉/placeholder，方便截圖分享）">🔒 鎖定預覽</button>
       <button class="btn btn-danger" @click="clearAll()">🗑 清空</button>
+    </div>
+  </div>
+
+  <!-- ===== 雲端報價單清單（不列印） ===== -->
+  <div class="cloud-overlay no-print" x-show="cloud.showPanel" x-cloak @click.self="cloud.showPanel=false">
+    <div class="cloud-panel">
+      <div class="cloud-panel-head">
+        <strong>☁️ 雲端報價單</strong>
+        <div>
+          <button class="btn" @click="refreshCloud()">↻ 重新整理</button>
+          <button class="btn" @click="cloud.showPanel=false">✕ 關閉</button>
+        </div>
+      </div>
+      <div style="margin:6px 0;color:#888;font-size:12px;">目前畫面：<span x-text="cloud.currentId ? '對應雲端某一筆，存雲端會更新它' : '新報價單，存雲端會新增一筆'"></span>　<button class="btn" style="font-size:12px;padding:2px 8px;" @click="cloudNew()">設為新報價單</button></div>
+      <div style="margin:8px 0;color:#c80;font-size:13px;" x-show="cloud.busy">處理中…</div>
+      <template x-if="!cloud.list.length && !cloud.busy">
+        <div style="padding:24px;color:#888;text-align:center;">還沒有雲端報價單，先按「☁️ 存到雲端」吧。</div>
+      </template>
+      <table class="cloud-list" x-show="cloud.list.length">
+        <template x-for="row in cloud.list" :key="row.id">
+          <tr :class="{ 'is-current': row.id === cloud.currentId }">
+            <td>
+              <div style="font-weight:600;" x-text="row.customer_name || '未命名'"></div>
+              <div style="font-size:12px;color:#888;" x-text="(row.project_name||'') + '　' + (row.updated_at||'').slice(0,16).replace('T',' ')"></div>
+            </td>
+            <td style="white-space:nowrap;text-align:right;">
+              <button class="btn" @click="cloudLoad(row)">載入</button>
+              <button class="btn" @click="cloudLoad(row, true)">複製</button>
+              <button class="btn btn-danger" @click="cloudDelete(row)">刪除</button>
+            </td>
+          </tr>
+        </template>
+      </table>
     </div>
   </div>
 

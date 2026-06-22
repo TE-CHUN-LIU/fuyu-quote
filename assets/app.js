@@ -3,6 +3,12 @@
 
 const STORAGE_KEY = 'fuyu-quote-v1';
 
+// === 雲端（MMT 共用的 Supabase；資料表受密碼把關，外部讀不到） ===
+const SUPA_URL = 'https://ulaumiqgrazbpdpykgsw.supabase.co';
+const SUPA_KEY = 'sb_publishable_hqupVgCRCxuMKb6UJXLglg_cEB-rifP';
+const CLOUD_PASS_KEY = 'fuyu-cloud-pass';
+let supaClient = null; // 模組層持有，不放進 Alpine 反應式 state
+
 function quoteApp() {
   return {
     // === State ===
@@ -25,6 +31,15 @@ function quoteApp() {
     bankChoice: 'cathay', // 'cathay' 或 'yuanta'
     needInvoice: false,
     isLocked: false,
+    // 雲端狀態
+    cloud: {
+      ready: false,
+      pass: localStorage.getItem(CLOUD_PASS_KEY) || '',
+      list: [],
+      showPanel: false,
+      currentId: null, // 目前畫面對應的雲端筆 id；null = 尚未存雲端／新報價單
+      busy: false,
+    },
     groupMode: 'category', // 'category' 依工程分類 / 'floor' 依樓層分類
     floorFilter: '全部',    // '全部' 或某一樓層（只篩選檢視，不影響總計）
     addForm: {
@@ -139,6 +154,139 @@ function quoteApp() {
       this.$watch('groupMode', () => this.save());
       this.$watch('floorFilter', () => this.save());
       this.$watch('cols', () => this.save(), { deep: true });
+      this.cloudInit();
+    },
+
+    // === 雲端報價單 ===
+    cloudInit() {
+      try {
+        if (window.supabase && SUPA_URL) {
+          supaClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: false } });
+          this.cloud.ready = true;
+        }
+      } catch (e) {
+        console.error('雲端初始化失敗', e);
+      }
+    },
+
+    _ensurePass() {
+      if (this.cloud.pass) return true;
+      const p = prompt('請輸入富寓雲端密碼：');
+      if (!p) return false;
+      this.cloud.pass = p.trim();
+      localStorage.setItem(CLOUD_PASS_KEY, this.cloud.pass);
+      return true;
+    },
+
+    _collectData() {
+      return {
+        project: this.project,
+        customer: this.customer,
+        items: this.items,
+        bankChoice: this.bankChoice,
+        needInvoice: this.needInvoice,
+        groupMode: this.groupMode,
+        floorFilter: this.floorFilter,
+        cols: this.cols,
+      };
+    },
+
+    _applyData(data) {
+      Object.assign(this.project, data.project || {});
+      Object.assign(this.customer, data.customer || {});
+      this.items = data.items || [];
+      this.bankChoice = data.bankChoice || 'cathay';
+      this.needInvoice = !!data.needInvoice;
+      this.groupMode = data.groupMode || 'category';
+      this.floorFilter = data.floorFilter || '全部';
+      if (data.cols) {
+        for (const k of Object.keys(this.cols)) {
+          if (data.cols[k]) Object.assign(this.cols[k], data.cols[k]);
+        }
+      }
+    },
+
+    async cloudSave() {
+      if (!this.cloud.ready) { alert('雲端尚未啟用'); return; }
+      if (!this._ensurePass()) return;
+      this.cloud.busy = true;
+      try {
+        const { data, error } = await supaClient.rpc('fuyu_upsert', {
+          pass: this.cloud.pass,
+          p_id: this.cloud.currentId,
+          p_customer: this.customer.name || '未命名',
+          p_project: this.project.name || '',
+          p_data: this._collectData(),
+        });
+        if (error) throw error;
+        this.cloud.currentId = data;
+        alert('已存到雲端 ☁️');
+      } catch (e) {
+        this._cloudErr(e);
+      } finally {
+        this.cloud.busy = false;
+      }
+    },
+
+    async openCloud() {
+      if (!this.cloud.ready) { alert('雲端尚未啟用'); return; }
+      if (!this._ensurePass()) return;
+      await this.refreshCloud();
+      this.cloud.showPanel = true;
+    },
+
+    async refreshCloud() {
+      this.cloud.busy = true;
+      try {
+        const { data, error } = await supaClient.rpc('fuyu_list', { pass: this.cloud.pass });
+        if (error) throw error;
+        this.cloud.list = data || [];
+      } catch (e) {
+        this._cloudErr(e);
+      } finally {
+        this.cloud.busy = false;
+      }
+    },
+
+    cloudLoad(row, asCopy = false) {
+      if (!confirm(asCopy ? '複製這筆到目前畫面（會覆蓋目前內容）？' : '載入這筆（會覆蓋目前內容）？')) return;
+      this._applyData(row.data || {});
+      this.cloud.currentId = asCopy ? null : row.id;
+      this.cloud.showPanel = false;
+      alert(asCopy ? '已複製為新報價單，存雲端會建立新一筆' : '已載入');
+    },
+
+    async cloudDelete(row) {
+      if (!confirm(`刪除雲端的「${row.customer_name || '未命名'}」？此動作無法復原。`)) return;
+      this.cloud.busy = true;
+      try {
+        const { error } = await supaClient.rpc('fuyu_delete', { pass: this.cloud.pass, p_id: row.id });
+        if (error) throw error;
+        if (this.cloud.currentId === row.id) this.cloud.currentId = null;
+        await this.refreshCloud();
+      } catch (e) {
+        this._cloudErr(e);
+      } finally {
+        this.cloud.busy = false;
+      }
+    },
+
+    cloudNew() {
+      this.cloud.currentId = null;
+      this.cloud.showPanel = false;
+      alert('已切換為「新報價單」，下次存雲端會建立新一筆（不會蓋掉剛才那筆）');
+    },
+
+    _cloudErr(e) {
+      console.error(e);
+      const msg = (e && e.message) || '';
+      if (msg.includes('unauthorized')) {
+        alert('雲端密碼錯誤，請重新輸入');
+        this.cloud.pass = '';
+        localStorage.removeItem(CLOUD_PASS_KEY);
+      } else {
+        alert('雲端操作失敗：' + msg);
+      }
     },
 
     addItem() {
