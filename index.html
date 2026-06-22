@@ -47,12 +47,16 @@
         </div>
       </div>
       <div style="margin:6px 0;color:#888;font-size:12px;">目前畫面：<span x-text="cloud.currentId ? '對應雲端某一筆，存雲端會更新它' : '新報價單，存雲端會新增一筆'"></span>　<button class="btn" style="font-size:12px;padding:2px 8px;" @click="cloudNew()">設為新報價單</button></div>
+      <input type="text" class="cloud-search" x-model="cloud.search" placeholder="🔍 搜尋案場 / 客戶名稱…" x-show="cloud.list.length">
       <div style="margin:8px 0;color:#c80;font-size:13px;" x-show="cloud.busy">處理中…</div>
       <template x-if="!cloud.list.length && !cloud.busy">
         <div style="padding:24px;color:#888;text-align:center;">還沒有雲端報價單，先按「☁️ 存到雲端」吧。</div>
       </template>
-      <table class="cloud-list" x-show="cloud.list.length">
-        <template x-for="row in cloud.list" :key="row.id">
+      <template x-if="cloud.list.length && !cloudFiltered.length">
+        <div style="padding:20px;color:#888;text-align:center;">找不到符合「<span x-text="cloud.search"></span>」的案場</div>
+      </template>
+      <table class="cloud-list" x-show="cloudFiltered.length">
+        <template x-for="row in cloudFiltered" :key="row.id">
           <tr :class="{ 'is-current': row.id === cloud.currentId }">
             <td>
               <div style="font-weight:600;" x-text="row.customer_name || '未命名'"></div>

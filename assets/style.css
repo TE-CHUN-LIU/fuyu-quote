@@ -654,3 +654,8 @@ body.printing ::placeholder { color: transparent; }
 .cloud-list td { padding: 10px 6px; border-bottom: 1px solid #eee; vertical-align: middle; }
 .cloud-list tr.is-current { background: #fff8e1; }
 .cloud-list .btn { margin-left: 4px; }
+.cloud-search {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px; margin: 4px 0 8px;
+  border: 1px solid #ddd; border-radius: 6px; font-size: 14px;
+}

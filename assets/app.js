@@ -39,6 +39,7 @@ function quoteApp() {
       showPanel: false,
       currentId: null, // 目前畫面對應的雲端筆 id；null = 尚未存雲端／新報價單
       busy: false,
+      search: '', // 雲端清單搜尋（案場／客戶）
     },
     groupMode: 'category', // 'category' 依工程分類 / 'floor' 依樓層分類
     floorFilter: '全部',    // '全部' 或某一樓層（只篩選檢視，不影響總計）
@@ -158,6 +159,15 @@ function quoteApp() {
     },
 
     // === 雲端報價單 ===
+    // 依搜尋字串篩選雲端清單（比對案場/工程名稱與客戶名稱）
+    get cloudFiltered() {
+      const q = (this.cloud.search || '').trim().toLowerCase();
+      if (!q) return this.cloud.list;
+      return this.cloud.list.filter(r =>
+        ((r.project_name || '') + ' ' + (r.customer_name || '')).toLowerCase().includes(q)
+      );
+    },
+
     cloudInit() {
       try {
         if (window.supabase && SUPA_URL) {
