@@ -44,6 +44,7 @@ function quoteApp() {
     // 雲端狀態（Supabase Auth 登入制）
     cloud: {
       ready: false,
+      authChecked: false, // 是否已確認登入狀態（避免一進來閃登入頁）
       user: null,      // 已登入的 Supabase 使用者；null = 未登入
       email: '',       // 顯示用 email
       orgId: null,     // 所屬公司 id（登入後由 fuyu_ensure_org 取得）
@@ -213,16 +214,23 @@ function quoteApp() {
 
     cloudInit() {
       try {
-        if (!window.supabase || !SUPA_URL) return;
+        if (!window.supabase || !SUPA_URL) { this.cloud.authChecked = true; return; }
         supaClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
           auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
         });
         this.cloud.ready = true;
         // 還原既有登入 + 監聽登入狀態變化（magic link 點回來時觸發）
-        supaClient.auth.getSession().then(({ data }) => this._applySession(data.session));
-        supaClient.auth.onAuthStateChange((_e, session) => this._applySession(session));
+        supaClient.auth.getSession().then(({ data }) => {
+          this._applySession(data.session);
+          this.cloud.authChecked = true;
+        });
+        supaClient.auth.onAuthStateChange((_e, session) => {
+          this._applySession(session);
+          this.cloud.authChecked = true;
+        });
       } catch (e) {
         console.error('雲端初始化失敗', e);
+        this.cloud.authChecked = true;
       }
     },
 

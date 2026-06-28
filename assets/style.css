@@ -85,6 +85,28 @@ body {
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
 }
+/* 強制登入閘門：整頁實心品牌背景，蓋住底下所有內容 */
+.login-gate {
+  z-index: 2000;
+  background: linear-gradient(150deg, #20344d 0%, #2e4a6b 55%, #3a5c86 100%);
+  backdrop-filter: none;
+}
+.login-h {
+  font-size: 15px; font-weight: 700; color: #2e4a6b;
+  margin: 2px 0 14px; letter-spacing: 1px;
+}
+.caret { color: #aab; }
+
+/* 啟動載入畫面 */
+.boot-splash {
+  position: fixed; inset: 0; z-index: 2100;
+  background: linear-gradient(150deg, #20344d, #2e4a6b);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; color: #fff;
+}
+.boot-splash .login-logo { width: 64px; height: 64px; font-size: 32px; border-radius: 16px; }
+.boot-name { font-size: 18px; font-weight: 700; letter-spacing: 2px; }
+.boot-dots { font-size: 13px; color: #b9c6d6; }
 .login-card {
   position: relative;
   width: 100%; max-width: 380px;
@@ -198,6 +220,10 @@ body {
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 8px 14px;
   border: 1px solid var(--border);
   background: var(--paper);
@@ -206,6 +232,11 @@ body {
   font-size: 13px;
   color: var(--text);
   transition: all .15s;
+}
+.btn .ic {
+  width: 17px; height: 17px;
+  flex: 0 0 auto;
+  display: block;
 }
 .btn:hover { background: #f0f0ed; }
 .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }

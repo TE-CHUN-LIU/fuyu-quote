@@ -17,36 +17,51 @@
 <body>
 <div class="app" x-data="quoteApp()" x-init="init()">
 
-  <!-- ===== Toolbar（不列印） ===== -->
-  <div class="toolbar no-print">
-    <div><strong>富寓報價單編輯器</strong>　<span style="color:#888;font-size:12px;">自動暫存中</span></div>
+  <!-- ===== Toolbar（不列印；登入後才顯示） ===== -->
+  <div class="toolbar no-print" x-show="cloud.user" x-cloak>
+    <div class="toolbar-title"><strong>富寓報價單編輯器</strong></div>
     <div class="toolbar-actions">
-      <button class="btn btn-primary" @click="cloudLogin()" :disabled="cloud.busy" x-show="cloud.ready && !cloud.user" title="用 Email 登入後即可把報價單存到雲端">🔑 登入雲端</button>
-      <button class="btn btn-primary" @click="cloudSave()" :disabled="cloud.busy" x-show="cloud.ready && cloud.user" title="存到雲端，換手機/電腦都叫得回來">☁️ 存到雲端</button>
-      <button class="btn" @click="openCloud()" :disabled="cloud.busy" x-show="cloud.ready && cloud.user" title="叫出雲端存過的報價單">📂 雲端清單</button>
-      <button class="btn cloud-who-btn" x-show="cloud.ready && cloud.user" x-cloak @click="openAccount()" title="帳號管理">
-        <span x-text="cloud.isAdmin ? '👑' : '👤'"></span>
-        <span x-text="cloud.email"></span>
-        <span style="color:#aab;">▾</span>
+      <button class="btn btn-primary" @click="cloudSave()" :disabled="cloud.busy" title="存到雲端，換手機/電腦都叫得回來">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16l-4-4-4 4"/><path d="M12 12v9"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg><span>存到雲端</span>
       </button>
-      <button class="btn" @click="exportJson()" title="把目前報價單存成檔案，下次用『匯入存檔』叫回來繼續編輯">💾 存檔</button>
-      <label class="btn" style="cursor:pointer;">
-        📤 匯入存檔
+      <button class="btn" @click="openCloud()" :disabled="cloud.busy" title="叫出雲端存過的報價單">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>雲端清單</span>
+      </button>
+      <button class="btn cloud-who-btn" @click="openAccount()" title="帳號管理">
+        <span x-show="cloud.isAdmin" x-cloak>👑</span>
+        <svg class="ic" x-show="!cloud.isAdmin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span x-text="cloud.email"></span>
+        <span class="caret">▾</span>
+      </button>
+      <button class="btn" @click="exportJson()" title="把目前報價單存成檔案，下次用『匯入存檔』叫回來繼續編輯">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg><span>存檔</span>
+      </button>
+      <label class="btn" style="cursor:pointer;" title="把存過的 JSON 檔叫回來繼續編輯">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg><span>匯入存檔</span>
         <input type="file" accept=".json" @change="importJson($event)" style="display:none;">
       </label>
-      <label class="btn" style="cursor:pointer;" :class="{ 'btn-accent': importState.busy }" title="支援 JSON / CSV / Excel / 可選文字 PDF；圖片、掃描 PDF、Numbers 可接 AI 解析">
-        🤖 智慧匯入
+      <label class="btn" style="cursor:pointer;" :class="{ 'btn-accent': importState.busy }" title="JSON / CSV / Excel / 可選字 PDF 直接解析；掃描 PDF、圖片、Numbers 走 AI 解析">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18.4 9 13.8 10.8 12 15l-1.8-4.2L5.6 9l4.6-1.4z"/><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/></svg><span>智慧匯入</span>
         <input type="file" accept=".json,.csv,.xlsx,.xls,.numbers,.pdf,image/*" @change="importAny($event)" style="display:none;">
       </label>
-      <button class="btn" @click="savePdf()" title="把報價單存成 A4 PDF（自動隱藏編輯介面）">📄 存 PDF</button>
-      <button class="btn" @click="savePng()" title="把報價單存成 PNG 圖片，可直接傳 LINE">🖼 存 PNG</button>
-      <button class="btn" @click="saveExcel()" title="Numbers 也能直接打開 .xlsx">📊 存 Excel</button>
-      <button class="btn" @click="saveCsv()" title="通用格式、任何試算表軟體都能開">📋 存 CSV</button>
-      <button class="btn" @click="toggleLock()" title="切換預覽模式（藏下拉/placeholder，方便截圖分享）">🔒 鎖定預覽</button>
-      <button class="btn btn-danger" @click="clearAll()">🗑 清空</button>
-    </div>
-    <div class="toolbar-hint no-print">
-      💡 智慧匯入：JSON / CSV / Excel / 可選字 PDF 直接在瀏覽器解析；<strong>掃描 PDF、圖片、Numbers 需啟用 AI 匯入</strong>（後台未設定金鑰時會提示）。
+      <button class="btn" @click="savePdf()" title="把報價單存成 A4 PDF（自動隱藏編輯介面）">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg><span>存 PDF</span>
+      </button>
+      <button class="btn" @click="savePng()" title="把報價單存成 PNG 圖片，可直接傳 LINE">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><span>存 PNG</span>
+      </button>
+      <button class="btn" @click="saveExcel()" title="Numbers 也能直接打開 .xlsx">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span>存 Excel</span>
+      </button>
+      <button class="btn" @click="saveCsv()" title="通用格式、任何試算表軟體都能開">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg><span>存 CSV</span>
+      </button>
+      <button class="btn" @click="toggleLock()" title="切換預覽模式（藏下拉/placeholder，方便截圖分享）">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>鎖定預覽</span>
+      </button>
+      <button class="btn btn-danger" @click="clearAll()" title="清空目前報價單">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg><span>清空</span>
+      </button>
     </div>
   </div>
 
@@ -87,10 +102,16 @@
     </div>
   </div>
 
-  <!-- ===== 家群品牌登入頁（不列印） ===== -->
-  <div class="login-overlay no-print" x-show="cloud.showLogin" x-cloak @click.self="closeLogin()">
+  <!-- ===== 載入中啟動畫面（確認登入狀態前） ===== -->
+  <div class="boot-splash no-print" x-show="!cloud.authChecked" x-cloak>
+    <div class="login-logo" x-text="platform.brandEn.slice(0,1)"></div>
+    <div class="boot-name"><span x-text="platform.brand"></span> <span x-text="platform.system"></span></div>
+    <div class="boot-dots">載入中…</div>
+  </div>
+
+  <!-- ===== 家群品牌登入頁（強制登入閘門；不列印） ===== -->
+  <div class="login-overlay login-gate no-print" x-show="cloud.authChecked && !cloud.user" x-cloak>
     <div class="login-card">
-      <button class="login-close" @click="closeLogin()" title="關閉">✕</button>
       <div class="login-brand">
         <div class="login-logo" x-text="platform.brandEn.slice(0,1)"></div>
         <div class="login-wordmark">
@@ -99,6 +120,7 @@
         </div>
       </div>
       <div class="login-tagline" x-text="platform.tagline"></div>
+      <div class="login-h">登入系統</div>
 
       <form class="login-form" @submit.prevent="doLogin()">
         <label class="login-field">
@@ -110,12 +132,12 @@
           <input type="password" x-model="cloud.loginPass" placeholder="請輸入密碼" autocomplete="current-password" :disabled="cloud.loginBusy" @keydown.enter.prevent="doLogin()">
         </label>
         <div class="login-err" x-show="cloud.loginErr" x-text="cloud.loginErr"></div>
-        <button type="submit" class="login-btn" :disabled="cloud.loginBusy" x-text="cloud.loginBusy ? '登入中…' : '登入'"></button>
+        <button type="submit" class="login-btn" :disabled="cloud.loginBusy" x-text="cloud.loginBusy ? '登入中…' : '登入系統'"></button>
         <button type="button" class="login-link" :disabled="cloud.loginBusy" @click="sendMagicLink()">沒有密碼？寄登入連結到我的 Email</button>
       </form>
 
       <div class="login-foot">
-        由 <strong x-text="platform.provider"></strong> 提供　·　<span x-text="platform.domain"></span>
+        本系統需登入後使用　·　由 <strong x-text="platform.provider"></strong> 提供
       </div>
     </div>
   </div>
@@ -151,7 +173,7 @@
   <button class="unlock-fab no-print" @click="toggleLock()" x-show="isLocked" title="回到編輯模式">✏️ 編輯</button>
 
   <!-- ===== Paper 報價單版面 ===== -->
-  <div class="paper">
+  <div class="paper" x-show="cloud.user" x-cloak>
 
     <!-- Header -->
     <div class="header">
