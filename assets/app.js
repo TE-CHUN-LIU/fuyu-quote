@@ -1227,13 +1227,13 @@ function quoteApp() {
       const n = cols.length;
 
       const th = cols.map(x =>
-        `<th style="border:1px solid #ccc;padding:6px 8px;background:#f0f0f0;font-size:12px;${x[2] ? 'width:' + x[2] + ';' : ''}text-align:${x[3]}">${x[1]}</th>`
+        `<th style="border:1px solid #2e4a6b;padding:7px 8px;background:#2e4a6b;color:#fff;font-size:12px;font-weight:600;${x[2] ? 'width:' + x[2] + ';' : ''}text-align:${x[3]}">${x[1]}</th>`
       ).join('');
 
       let rows = '';
       let seq = 0;
       for (const g of this.groups) {
-        rows += `<tr><td colspan="${n}" style="border:1px solid #ccc;padding:6px 8px;background:#eaf0f6;font-weight:600;font-size:13px;">${e(g.label)}<span style="float:right">小計 $ ${m(g.subtotal)}</span></td></tr>`;
+        rows += `<tr><td colspan="${n}" style="border:1px solid #ccc;border-left:3px solid #2e4a6b;padding:6px 10px;background:#eef3f8;font-weight:700;font-size:13px;color:#2e4a6b;">${e(g.label)}<span style="float:right">小計 $ ${m(g.subtotal)}</span></td></tr>`;
         for (const it of g.items) {
           seq++;
           const v = { idx: seq, floor: it.floor, name: it.name, spec: it.spec, unit: it.unit, qty: (Number(it.qty) || 0), price: m(this.quoteUnitPrice(it)), subtotal: m(this.quoteSubtotal(it)), note: it.note };
@@ -1245,7 +1245,7 @@ function quoteApp() {
 
       const infoRow = (l1, v1, l2, v2) =>
         `<tr><td style="padding:5px 8px;color:#555;width:80px;">${l1}</td><td style="padding:5px 8px;border-bottom:1px solid #eee;">${e(v1)}</td><td style="padding:5px 8px;color:#555;width:80px;">${l2 || ''}</td><td style="padding:5px 8px;border-bottom:1px solid #eee;">${e(v2 || '')}</td></tr>`;
-      const taxRow = this.needInvoice ? `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>營業稅 5%</span><span>$ ${m(this.tax)}</span></div>` : '';
+      const taxRow = this.needInvoice ? `<div style="display:flex;justify-content:space-between;padding:7px 12px;border-top:1px solid #eee;"><span>營業稅 5%</span><span>$ ${m(this.tax)}</span></div>` : '';
       const termsHtml = this.terms.map(t => `<li style="margin:3px 0;font-size:11px;color:#444;">${e(t)}</li>`).join('');
       const bank = this.currentBank;
 
@@ -1271,27 +1271,30 @@ function quoteApp() {
           ${infoRow('客戶地址', cu.address, '', '')}
         </table>
         <table style="width:100%;border-collapse:collapse;margin-top:6px;"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>
-        <div style="margin-top:10px;margin-left:auto;width:300px;font-size:13px;">
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>工程總額（未稅）</span><span>$ ${m(this.quoteGrandTotal)}</span></div>
+        <div style="margin-top:12px;margin-left:auto;width:344px;font-size:13px;border:1px solid #d6dde6;border-radius:2px;overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;padding:7px 12px;"><span>工程總額（未稅）</span><span>$ ${m(this.quoteGrandTotal)}</span></div>
           ${taxRow}
-          <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid #2e4a6b;font-weight:700;font-size:15px;"><span>${this.needInvoice ? '總計（含稅）' : '總計（未含稅）'}</span><span>$ ${m(this.finalTotal)}</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#2e4a6b;color:#fff;"><span style="font-size:14px;font-weight:700;">${this.needInvoice ? '總計（含稅）' : '總計（未含稅）'}</span><span style="font-size:19px;font-weight:700;color:#ffd24d;">NT$ ${m(this.finalTotal)} 元整</span></div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:10px;text-align:center;">
-          <div style="flex:1;border:1px solid #ddd;padding:8px;font-size:12px;"><div style="color:#888;">請款一　進場 30%</div><div style="font-weight:700;margin-top:4px;">$ ${m(this.payments.first)}</div></div>
-          <div style="flex:1;border:1px solid #ddd;padding:8px;font-size:12px;"><div style="color:#888;">請款二　進度 40%</div><div style="font-weight:700;margin-top:4px;">$ ${m(this.payments.second)}</div></div>
-          <div style="flex:1;border:1px solid #ddd;padding:8px;font-size:12px;"><div style="color:#888;">請款三　完工 30%</div><div style="font-weight:700;margin-top:4px;">$ ${m(this.payments.third)}</div></div>
+        <div style="display:flex;gap:10px;margin-top:12px;text-align:center;">
+          <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款一　進場 30%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.first)}</div></div>
+          <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款二　進度 40%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.second)}</div></div>
+          <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款三　完工 30%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.third)}</div></div>
         </div>
         <div style="margin-top:16px;"><strong style="font-size:12px;">備註說明：</strong><ol style="margin:6px 0;padding-left:20px;">${termsHtml}</ol></div>
         <div style="display:flex;gap:16px;margin-top:14px;">
-          <div style="flex:1;border:1px solid #ddd;padding:12px;font-size:12px;line-height:1.9;">
-            <div style="font-weight:700;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:8px;">客戶確認章戳</div>
+          <div style="flex:1;border:1px solid #d6dde6;font-size:12px;line-height:1.9;">
+            <div style="font-weight:700;background:#eef3f8;color:#2e4a6b;padding:7px 12px;border-bottom:1px solid #d6dde6;">客戶確認章戳</div>
+            <div style="padding:10px 12px;">
             <div>客戶名稱：${e(cu.name)}</div><div>聯絡電話：${e(cu.phone)}</div>
             <div>統一編號：${e(cu.taxId)}</div><div>發票抬頭：${e(cu.invoiceTitle)}</div>
             <div>地　　址：${e(cu.address)}</div>
             <div style="margin-top:18px;color:#999;">（請於此處簽名或蓋章）</div>
+            </div>
           </div>
-          <div style="flex:1;border:1px solid #ddd;padding:12px;font-size:12px;line-height:1.9;">
-            <div style="font-weight:700;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:8px;">${e(co.name)}<span style="float:right;font-weight:400;color:#888;">統編 ${e(co.taxId)}</span></div>
+          <div style="flex:1;border:1px solid #d6dde6;font-size:12px;line-height:1.9;">
+            <div style="font-weight:700;background:#eef3f8;color:#2e4a6b;padding:7px 12px;border-bottom:1px solid #d6dde6;">${e(co.name)}<span style="float:right;font-weight:400;color:#888;">統編 ${e(co.taxId)}</span></div>
+            <div style="padding:10px 12px;">
             <div>現場聯絡：${e(co.contact)}　${e(co.phone)}</div>
             <div>公司地址：${e(co.address)}</div>
             <div>LINE　　：${e(co.line)}</div>
@@ -1301,6 +1304,7 @@ function quoteApp() {
             <div>匯款帳號：${e(bank.accountNo)}</div>
             <div style="margin-top:14px;">承辦人：${e(co.contact)}　＿＿＿＿＿＿＿＿</div>
             <div style="margin-top:6px;color:#999;">（公司用印）</div>
+            </div>
           </div>
         </div>
       `;
