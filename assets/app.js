@@ -1233,7 +1233,7 @@ function quoteApp() {
       let rows = '';
       let seq = 0;
       for (const g of this.groups) {
-        rows += `<tr><td colspan="${n}" style="border:1px solid #ccc;border-left:3px solid #2e4a6b;padding:6px 10px;background:#eef3f8;font-weight:700;font-size:13px;color:#2e4a6b;">${e(g.label)}<span style="float:right">小計 $ ${m(g.subtotal)}</span></td></tr>`;
+        rows += `<tr class="sec-row"><td colspan="${n}" style="border:1px solid #ccc;border-left:3px solid #2e4a6b;padding:6px 10px;background:#eef3f8;font-weight:700;font-size:13px;color:#2e4a6b;">${e(g.label)}<span style="float:right">小計 $ ${m(g.subtotal)}</span></td></tr>`;
         for (const it of g.items) {
           seq++;
           const v = { idx: seq, floor: it.floor, name: it.name, spec: it.spec, unit: it.unit, qty: (Number(it.qty) || 0), price: m(this.quoteUnitPrice(it)), subtotal: m(this.quoteSubtotal(it)), note: it.note };
@@ -1282,7 +1282,7 @@ function quoteApp() {
           <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款三　完工 30%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.third)}</div></div>
         </div>
         <div data-block style="margin-top:16px;"><strong style="font-size:12px;">備註說明：</strong><ol style="margin:6px 0;padding-left:20px;">${termsHtml}</ol></div>
-        <div data-block style="display:flex;gap:16px;margin-top:14px;">
+        <div data-block data-sig style="display:flex;gap:16px;margin-top:14px;">
           <div style="flex:1;border:1px solid #d6dde6;font-size:12px;line-height:1.9;">
             <div style="font-weight:700;background:#eef3f8;color:#2e4a6b;padding:7px 12px;border-bottom:1px solid #d6dde6;">客戶確認章戳</div>
             <div style="padding:10px 12px;">
@@ -1332,6 +1332,7 @@ function quoteApp() {
       const scale = 2;
       let canvas = null;
       let breaks = [];
+      let sigTop = 0;
       try {
         canvas = await html2canvas(node, {
           scale,
@@ -1340,21 +1341,25 @@ function quoteApp() {
           windowWidth: node.offsetWidth,
           windowHeight: node.offsetHeight,
         });
-        // 收集「安全分頁點」：每個表格列、條款項、大區塊的底緣（canvas 像素）
-        // 只在這些邊界斷頁，就不會把任何一行字或一列切成兩半
+        // 收集「安全分頁點」：每個內容列、條款項、大區塊的底緣（canvas 像素）
+        // 只在這些邊界斷頁，就不會把任何一行字或一列切成兩半。
+        // 排除 thead 與 .sec-row（分類標題列）→ 標題不會單獨落在頁尾。
         const top = node.getBoundingClientRect().top;
         const set = new Set();
-        node.querySelectorAll('tr, ol > li, [data-block]').forEach(el => {
+        node.querySelectorAll('tbody tr:not(.sec-row), ol > li, [data-block]').forEach(el => {
           const b = Math.round((el.getBoundingClientRect().bottom - top) * scale);
           if (b > 0) set.add(b);
         });
         breaks = [...set].sort((a, b) => a - b);
+        // 簽章區頂緣（canvas 像素）→ 用來把簽章區推到獨立的最後一頁
+        const sig = node.querySelector('[data-sig]');
+        sigTop = sig ? Math.round((sig.getBoundingClientRect().top - top) * scale) : 0;
       } catch (e) {
         alert('產生影像失敗：' + e.message);
       } finally {
         wrap.remove();
       }
-      return canvas ? { canvas, breaks } : null;
+      return canvas ? { canvas, breaks, sigTop } : null;
     },
 
     async savePng() {
@@ -1369,43 +1374,75 @@ function quoteApp() {
     async savePdf() {
       const r = await this._capturePaper();
       if (!r) return;
-      const { canvas, breaks } = r;
+      const { canvas, breaks, sigTop } = r;
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWmm = 210, pageHmm = 297;
       const cw = canvas.width;
       const pxPerMm = cw / pageWmm;
-      const pageHpx = Math.floor(pageHmm * pxPerMm); // 一整頁可容納的 canvas 高度
+      const fullPageH = Math.round(pageHmm * pxPerMm);
+      const FOOT = Math.round(10 * pxPerMm); // 頁尾頁碼留白
+      const HEAD = Math.round(9 * pxPerMm);  // 第 2 頁起頁首留白
       const totalH = canvas.height;
 
-      let y = 0;
-      let first = true;
-      let guard = 0;
+      // 整份是否一頁就裝得下（含簽章）：是的話就不強制把簽章推到第二頁
+      const onePage = totalH <= fullPageH - FOOT;
+
+      // 1) 先算出每頁要切的 [起, 迄, 該頁頂部留白]
+      const slices = [];
+      let y = 0, guard = 0;
       while (y < totalH - 1 && guard++ < 200) {
-        const target = y + pageHpx;
+        const isFirst = slices.length === 0;
+        const topM = isFirst ? 0 : HEAD;
+        const avail = fullPageH - topM - FOOT;
+        let target = y + avail;
         let cut;
         if (target >= totalH) {
-          cut = totalH; // 最後一頁，全部放完
+          cut = totalH;
         } else {
-          // 找 <= target 且 > y 的最大安全分頁點
-          cut = 0;
-          for (const b of breaks) {
-            if (b > y && b <= target) cut = b;
-            else if (b > target) break;
+          // ③ 簽章區獨立一頁：若這頁範圍會碰到簽章區頂緣，就在頂緣斷頁，讓簽章另起新頁
+          if (!onePage && sigTop > y && sigTop <= target) {
+            cut = sigTop;
+          } else {
+            // 找 <= target 且 > y 的最大安全分頁點
+            cut = 0;
+            for (const b of breaks) {
+              if (b > y && b <= target) cut = b;
+              else if (b > target) break;
+            }
+            if (cut <= y) cut = target; // 找不到安全點（極長單列）才硬切
           }
-          if (cut <= y) cut = target; // 找不到安全點（極長單列）才硬切
         }
-        const sliceH = cut - y;
-        const page = document.createElement('canvas');
-        page.width = cw;
-        page.height = sliceH;
-        page.getContext('2d').drawImage(canvas, 0, y, cw, sliceH, 0, 0, cw, sliceH);
-        const imgHmm = sliceH / pxPerMm;
-        if (!first) pdf.addPage();
-        pdf.addImage(page.toDataURL('image/png'), 'PNG', 0, 0, pageWmm, imgHmm);
-        first = false;
+        slices.push([y, cut, topM]);
         y = cut;
       }
+
+      // 2) 逐頁畫成整張 A4（內容 + 中文頁首/頁碼用 canvas 直接畫，避免 jsPDF 中文亂碼）
+      const total = slices.length;
+      const headText = `${this.company.name}　報價單` + (this.project.quoteNo ? `　${this.project.quoteNo}` : '');
+      const fontPx = Math.round(2.9 * pxPerMm);
+      slices.forEach(([a, b, topM], i) => {
+        const sliceH = b - a;
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = cw;
+        pageCanvas.height = fullPageH;
+        const ctx = pageCanvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cw, fullPageH);
+        ctx.drawImage(canvas, 0, a, cw, sliceH, 0, topM, cw, sliceH);
+        ctx.fillStyle = '#999999';
+        ctx.font = `${fontPx}px "PingFang TC","Heiti TC","Microsoft JhengHei",sans-serif`;
+        if (i > 0) { // ② 第 2 頁起加頁首
+          ctx.textAlign = 'left';
+          ctx.fillText(headText, Math.round(12 * pxPerMm), Math.round(6.2 * pxPerMm));
+        }
+        if (total > 1) { // ② 頁碼（多頁時才標）
+          ctx.textAlign = 'center';
+          ctx.fillText(`第 ${i + 1} 頁／共 ${total} 頁`, cw / 2, fullPageH - Math.round(3.4 * pxPerMm));
+        }
+        if (i > 0) pdf.addPage();
+        pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageWmm, pageHmm);
+      });
       pdf.save(this._exportName() + '.pdf');
     },
 
