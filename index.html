@@ -115,6 +115,15 @@
         <input type="date" x-model="project.date">
       </div>
       <div class="info-row">
+        <label>估價編號：</label>
+        <input type="text" x-model="project.quoteNo" placeholder="例：FY-241214-01">
+        <button class="btn no-print" style="font-size:11px;padding:2px 8px;flex:0 0 auto;" @click="genQuoteNo()" title="自動產生編號">產生</button>
+      </div>
+      <div class="info-row">
+        <label>材　　質：</label>
+        <input type="text" x-model="project.material" placeholder="例：安盛美耐板（連工帶料）">
+      </div>
+      <div class="info-row">
         <label>工程地點：</label>
         <input type="text" x-model="project.location" placeholder="施工地址">
       </div>
@@ -219,6 +228,7 @@
           <tbody>
             <template x-for="item in g.items" :key="item.id">
               <tr>
+                <td class="col-idx-cell" x-show="cols.idx.show" x-text="seqMap[item.id]"></td>
                 <td x-show="cols.floor.show">
                   <select @change="item.floor = $event.target.value">
                     <template x-for="f in floorOptions" :key="f">
@@ -227,6 +237,7 @@
                   </select>
                 </td>
                 <td x-show="cols.name.show"><textarea x-model="item.name" rows="1"></textarea></td>
+                <td x-show="cols.spec.show"><textarea x-model="item.spec" rows="1" placeholder="尺寸/規格"></textarea></td>
                 <td x-show="cols.unit.show">
                   <select @change="item.unit = $event.target.value">
                     <template x-for="u in unitOptions" :key="u">
@@ -362,6 +373,7 @@
             <div class="row"><span class="key">銀行名稱：</span><span x-text="currentBank.bankName + '（' + currentBank.bankCode + '）'"></span></div>
             <div class="row"><span class="key">戶　　名：</span><span x-text="currentBank.accountName"></span></div>
             <div class="row"><span class="key">匯款帳號：</span><span x-text="currentBank.accountNo"></span></div>
+            <div class="row"><span class="key">承辦人：</span><span x-text="`${company.contact}　＿＿＿＿＿＿＿＿`"></span></div>
             <div style="margin-top:16px;color:#999;font-size:11px;">（公司用印）</div>
           </div>
         </div>

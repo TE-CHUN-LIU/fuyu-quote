@@ -13,8 +13,10 @@ function quoteApp() {
     // === State ===
     project: {
       name: '',
+      quoteNo: '',
       location: '',
       contact: '',
+      material: '',
       date: new Date().toISOString().slice(0, 10),
     },
     customer: {
@@ -62,8 +64,10 @@ function quoteApp() {
     },
     // 欄位定義（顯示/隱藏 + 寬度，順序固定）
     colDefs: [
+      { key: 'idx', label: '項次' },
       { key: 'floor', label: '樓層' },
       { key: 'name', label: '項目及說明' },
+      { key: 'spec', label: '規格/尺寸' },
       { key: 'unit', label: '單位' },
       { key: 'qty', label: '數量' },
       { key: 'price', label: '單價' },
@@ -71,13 +75,15 @@ function quoteApp() {
       { key: 'note', label: '備註' },
     ],
     cols: {
+      idx: { show: true, w: 42 },
       floor: { show: true, w: 58 },
       name: { show: true, w: 150 },
+      spec: { show: true, w: 120 },
       unit: { show: true, w: 52 },
       qty: { show: true, w: 56 },
       price: { show: true, w: 78 },
       subtotal: { show: true, w: 92 },
-      note: { show: true, w: 220 },
+      note: { show: true, w: 200 },
     },
 
     // === Data Sources ===
@@ -125,6 +131,13 @@ function quoteApp() {
         const label = this.groupMode === 'floor' ? `${key} 樓層` : `${key} 工程`;
         return { key, label, items: list, subtotal };
       });
+    },
+    // 連續項次編號（依目前分組顯示順序，1, 2, 3…）：id -> 序號
+    get seqMap() {
+      const map = {};
+      let n = 0;
+      for (const g of this.groups) for (const it of g.items) map[it.id] = ++n;
+      return map;
     },
     get grandTotal() {
       return this.items.reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
@@ -410,6 +423,7 @@ function quoteApp() {
         floor: this.addForm.floor,
         category: libItem.category,
         name: libItem.name,
+        spec: '',
         unit: libItem.unit,
         qty: 1,
         price: libItem.defaultPrice,
@@ -429,11 +443,19 @@ function quoteApp() {
         floor: this.addForm.floor,
         category,
         name,
+        spec: '',
         unit,
         qty: 1,
         price,
         note: '',
       });
+    },
+
+    // 自動產生估價編號：FY-YYMMDD-NN
+    genQuoteNo() {
+      const d = (this.project.date || '').replace(/-/g, '').slice(2);
+      const nn = String(Math.floor(Math.random() * 90) + 10);
+      this.project.quoteNo = `FY-${d}-${nn}`;
     },
 
     removeItem(id) {
@@ -1012,6 +1034,7 @@ function quoteApp() {
         floor: raw.floor || this._inferFloor(name) || '全棟',
         category,
         name,
+        spec: this._cleanCell(raw.spec),
         unit,
         qty,
         price,
@@ -1142,8 +1165,10 @@ function quoteApp() {
       const ws = XLSX.utils.aoa_to_sheet(rows);
       // 欄寬設定
       ws['!cols'] = [
+        { wch: 5 },   // 項次
         { wch: 6 },   // 樓層
-        { wch: 30 },  // 項目
+        { wch: 28 },  // 項目及說明
+        { wch: 18 },  // 規格/尺寸
         { wch: 6 },   // 單位
         { wch: 8 },   // 數量
         { wch: 10 },  // 單價
@@ -1189,13 +1214,15 @@ function quoteApp() {
       const m = n => this.formatMoney(n);
       const e = s => this._esc(s);
       const cols = [
-        ['floor', '樓層', '58px', 'center'],
+        ['idx', '項次', '40px', 'center'],
+        ['floor', '樓層', '54px', 'center'],
         ['name', '項目及說明', '', 'left'],
-        ['unit', '單位', '54px', 'center'],
-        ['qty', '數量', '58px', 'right'],
-        ['price', '單價', '80px', 'right'],
-        ['subtotal', '總價', '92px', 'right'],
-        ['note', '備註', '200px', 'left'],
+        ['spec', '規格/尺寸', '120px', 'left'],
+        ['unit', '單位', '50px', 'center'],
+        ['qty', '數量', '52px', 'right'],
+        ['price', '單價', '76px', 'right'],
+        ['subtotal', '總價', '88px', 'right'],
+        ['note', '備註', '160px', 'left'],
       ].filter(x => c[x[0]].show);
       const n = cols.length;
 
@@ -1204,10 +1231,12 @@ function quoteApp() {
       ).join('');
 
       let rows = '';
+      let seq = 0;
       for (const g of this.groups) {
         rows += `<tr><td colspan="${n}" style="border:1px solid #ccc;padding:6px 8px;background:#eaf0f6;font-weight:600;font-size:13px;">${e(g.label)}<span style="float:right">小計 $ ${m(g.subtotal)}</span></td></tr>`;
         for (const it of g.items) {
-          const v = { floor: it.floor, name: it.name, unit: it.unit, qty: (Number(it.qty) || 0), price: m(this.quoteUnitPrice(it)), subtotal: m(this.quoteSubtotal(it)), note: it.note };
+          seq++;
+          const v = { idx: seq, floor: it.floor, name: it.name, spec: it.spec, unit: it.unit, qty: (Number(it.qty) || 0), price: m(this.quoteUnitPrice(it)), subtotal: m(this.quoteSubtotal(it)), note: it.note };
           rows += '<tr>' + cols.map(x =>
             `<td style="border:1px solid #ccc;padding:5px 8px;font-size:12px;text-align:${x[3]};white-space:pre-wrap;word-break:break-word;vertical-align:top;">${e(v[x[0]])}</td>`
           ).join('') + '</tr>';
@@ -1234,7 +1263,8 @@ function quoteApp() {
           <div style="width:60px;"></div>
         </div>
         <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;">
-          ${infoRow('工程名稱', pr.name, '報價日期', pr.date)}
+          ${infoRow('工程名稱', pr.name, '估價編號', pr.quoteNo)}
+          ${infoRow('報價日期', pr.date, '材　　質', pr.material)}
           ${infoRow('工程地點', pr.location, '現場聯絡', pr.contact)}
           ${infoRow('客戶名稱', cu.name, '聯絡電話', cu.phone)}
           ${infoRow('公司統編', cu.taxId, '發票抬頭', cu.invoiceTitle)}
@@ -1269,7 +1299,8 @@ function quoteApp() {
             <div>銀行名稱：${e(bank.bankName)}（${e(bank.bankCode)}）</div>
             <div>戶　　名：${e(bank.accountName)}</div>
             <div>匯款帳號：${e(bank.accountNo)}</div>
-            <div style="margin-top:14px;color:#999;">（公司用印）</div>
+            <div style="margin-top:14px;">承辦人：${e(co.contact)}　＿＿＿＿＿＿＿＿</div>
+            <div style="margin-top:6px;color:#999;">（公司用印）</div>
           </div>
         </div>
       `;
@@ -1344,12 +1375,15 @@ function quoteApp() {
 
     _buildSpreadsheetRows() {
       const r = [];
+      // 金額列：標籤放「項目」欄(idx 2)，金額放「總價」欄(idx 7)
+      const amtRow = (label, amount) => ['', '', label, '', '', '', '', amount];
       // 標題
       r.push([this.company.name]);
       r.push(['報價單']);
       r.push([]);
       // 工程資訊
-      r.push(['工程名稱', this.project.name, '', '', '報價日期', this.project.date]);
+      r.push(['工程名稱', this.project.name, '', '', '估價編號', this.project.quoteNo]);
+      r.push(['報價日期', this.project.date, '', '', '材質', this.project.material]);
       r.push(['工程地點', this.project.location, '', '', '現場聯絡', this.project.contact]);
       r.push([]);
       // 客戶資訊
@@ -1358,14 +1392,18 @@ function quoteApp() {
       r.push(['客戶地址', this.customer.address]);
       r.push([]);
       // 項目表標頭
-      r.push(['樓層', '項目及說明', '單位', '數量', '單價', '總價', '備註']);
+      r.push(['項次', '樓層', '項目及說明', '規格/尺寸', '單位', '數量', '單價', '總價', '備註']);
       // 依分類列出
+      let seq = 0;
       for (const [cat, list] of Object.entries(this.itemsByCategory)) {
         r.push([`── ${cat} ──`]);
         for (const it of list) {
+          seq++;
           r.push([
+            seq,
             it.floor,
             it.name,
+            it.spec || '',
             it.unit,
             Number(it.qty) || 0,
             this.quoteUnitPrice(it),
@@ -1373,20 +1411,20 @@ function quoteApp() {
             it.note || '',
           ]);
         }
-        r.push(['', `${cat}小計`, '', '', '', this.categorySubtotals[cat]]);
+        r.push(amtRow(`${cat}小計`, this.categorySubtotals[cat]));
       }
       r.push([]);
       // 合計
-      r.push(['', '工程總額（未稅）', '', '', '', this.quoteGrandTotal]);
+      r.push(amtRow('工程總額（未稅）', this.quoteGrandTotal));
       if (this.needInvoice) {
-        r.push(['', '營業稅 5%', '', '', '', this.tax]);
+        r.push(amtRow('營業稅 5%', this.tax));
       }
-      r.push(['', this.needInvoice ? '總計（含稅）' : '總計（未含稅）', '', '', '', this.finalTotal]);
+      r.push(amtRow(this.needInvoice ? '總計（含稅）' : '總計（未含稅）', this.finalTotal));
       r.push([]);
       // 三期付款
-      r.push(['', '請款一　進場時收 30%', '', '', '', this.payments.first]);
-      r.push(['', '請款二　工程進度 40%', '', '', '', this.payments.second]);
-      r.push(['', '請款三　完工後 30%', '', '', '', this.payments.third]);
+      r.push(amtRow('請款一　進場時收 30%', this.payments.first));
+      r.push(amtRow('請款二　工程進度 40%', this.payments.second));
+      r.push(amtRow('請款三　完工後 30%', this.payments.third));
       r.push([]);
       // 備註條款
       r.push(['備註說明：']);

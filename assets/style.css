@@ -266,6 +266,7 @@ table.items .col-name { width: 150px; }
 table.items .col-unit { width: 52px; }
 table.items .col-qty { width: 56px; }
 table.items .col-price { width: 78px; }
+table.items .col-idx-cell { text-align: center; color: var(--text-muted); font-size: 13px; vertical-align: middle; }
 table.items .col-subtotal { width: 92px; text-align: right; font-weight: 600; }
 table.items .col-action { width: 84px; text-align: center; }
 
