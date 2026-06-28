@@ -424,7 +424,20 @@ table.items .col-qty { width: 56px; }
 table.items .col-price { width: 78px; }
 table.items .col-idx-cell { text-align: center; color: var(--text-muted); font-size: 13px; vertical-align: middle; }
 table.items .col-subtotal { width: 92px; text-align: right; font-weight: 600; }
-table.items .col-action { width: 84px; text-align: center; }
+table.items .col-action { width: 132px; text-align: center; }
+table.items td.col-action { padding: 4px 6px; }
+.act-group { display: flex; gap: 4px; justify-content: center; }
+.act-btn {
+  width: 26px; height: 28px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1;
+  border: 1px solid var(--border); background: var(--paper);
+  border-radius: 6px; cursor: pointer; color: var(--text);
+  flex: 0 0 auto; transition: background .15s;
+}
+.act-btn:hover { background: #eef2f7; }
+.act-del { color: #c0392b; border-color: #ecc6c6; }
+.act-del:hover { background: #fdecec; }
 
 /* 可調寬欄位標題 + 拖曳把手 */
 table.items th { position: relative; }

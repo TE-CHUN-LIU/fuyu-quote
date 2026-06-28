@@ -335,11 +335,13 @@
                 </td>
                 <td class="col-subtotal total-cell" x-show="cols.subtotal.show" x-text="formatMoney(quoteSubtotal(item))"></td>
                 <td x-show="cols.note.show"><textarea x-model="item.note" rows="1" placeholder=""></textarea></td>
-                <td class="no-print" style="white-space:nowrap;">
-                  <button class="btn" @click="moveUp(item.id)" title="上移" style="padding:2px 6px;">↑</button>
-                  <button class="btn" @click="moveDown(item.id)" title="下移" style="padding:2px 6px;">↓</button>
-                  <button class="btn" @click="duplicateItem(item.id)" title="複製" style="padding:2px 6px;">複</button>
-                  <button class="btn btn-danger" @click="removeItem(item.id)" title="刪除" style="padding:2px 6px;">✕</button>
+                <td class="col-action no-print">
+                  <div class="act-group">
+                    <button class="act-btn" @click="moveUp(item.id)" title="上移">↑</button>
+                    <button class="act-btn" @click="moveDown(item.id)" title="下移">↓</button>
+                    <button class="act-btn" @click="duplicateItem(item.id)" title="複製">複</button>
+                    <button class="act-btn act-del" @click="removeItem(item.id)" title="刪除">✕</button>
+                  </div>
                 </td>
               </tr>
             </template>
