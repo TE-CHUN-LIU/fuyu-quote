@@ -24,10 +24,11 @@
       <button class="btn btn-primary" @click="cloudLogin()" :disabled="cloud.busy" x-show="cloud.ready && !cloud.user" title="用 Email 登入後即可把報價單存到雲端">🔑 登入雲端</button>
       <button class="btn btn-primary" @click="cloudSave()" :disabled="cloud.busy" x-show="cloud.ready && cloud.user" title="存到雲端，換手機/電腦都叫得回來">☁️ 存到雲端</button>
       <button class="btn" @click="openCloud()" :disabled="cloud.busy" x-show="cloud.ready && cloud.user" title="叫出雲端存過的報價單">📂 雲端清單</button>
-      <span class="cloud-who" x-show="cloud.ready && cloud.user" x-cloak>
-        <span x-text="cloud.isAdmin ? '👑 ' + cloud.email : cloud.email"></span>
-        <button class="btn" style="font-size:11px;padding:3px 8px;" @click="cloudLogout()">登出</button>
-      </span>
+      <button class="btn cloud-who-btn" x-show="cloud.ready && cloud.user" x-cloak @click="openAccount()" title="帳號管理">
+        <span x-text="cloud.isAdmin ? '👑' : '👤'"></span>
+        <span x-text="cloud.email"></span>
+        <span style="color:#aab;">▾</span>
+      </button>
       <button class="btn" @click="exportJson()" title="把目前報價單存成檔案，下次用『匯入存檔』叫回來繼續編輯">💾 存檔</button>
       <label class="btn" style="cursor:pointer;">
         📤 匯入存檔
@@ -83,6 +84,66 @@
           </tr>
         </template>
       </table>
+    </div>
+  </div>
+
+  <!-- ===== 家群品牌登入頁（不列印） ===== -->
+  <div class="login-overlay no-print" x-show="cloud.showLogin" x-cloak @click.self="closeLogin()">
+    <div class="login-card">
+      <button class="login-close" @click="closeLogin()" title="關閉">✕</button>
+      <div class="login-brand">
+        <div class="login-logo" x-text="platform.brandEn.slice(0,1)"></div>
+        <div class="login-wordmark">
+          <div class="lw-cn"><span x-text="platform.brand"></span><span class="lw-sys" x-text="platform.system"></span></div>
+          <div class="lw-en" x-text="platform.brandEn"></div>
+        </div>
+      </div>
+      <div class="login-tagline" x-text="platform.tagline"></div>
+
+      <form class="login-form" @submit.prevent="doLogin()">
+        <label class="login-field">
+          <span>Email</span>
+          <input type="email" x-model="cloud.loginEmail" placeholder="you@company.com" autocomplete="username" :disabled="cloud.loginBusy">
+        </label>
+        <label class="login-field">
+          <span>密碼</span>
+          <input type="password" x-model="cloud.loginPass" placeholder="請輸入密碼" autocomplete="current-password" :disabled="cloud.loginBusy" @keydown.enter.prevent="doLogin()">
+        </label>
+        <div class="login-err" x-show="cloud.loginErr" x-text="cloud.loginErr"></div>
+        <button type="submit" class="login-btn" :disabled="cloud.loginBusy" x-text="cloud.loginBusy ? '登入中…' : '登入'"></button>
+        <button type="button" class="login-link" :disabled="cloud.loginBusy" @click="sendMagicLink()">沒有密碼？寄登入連結到我的 Email</button>
+      </form>
+
+      <div class="login-foot">
+        由 <strong x-text="platform.provider"></strong> 提供　·　<span x-text="platform.domain"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 帳號管理面板（不列印） ===== -->
+  <div class="account-overlay no-print" x-show="cloud.showAccount" x-cloak @click.self="closeAccount()">
+    <div class="account-card">
+      <div class="account-head">
+        <strong>帳號管理</strong>
+        <button class="btn" @click="closeAccount()">✕ 關閉</button>
+      </div>
+      <div class="account-id">
+        <div class="account-avatar" x-text="cloud.isAdmin ? '👑' : '👤'"></div>
+        <div>
+          <div class="account-email" x-text="cloud.email"></div>
+          <div class="account-role" x-text="roleLabel()"></div>
+        </div>
+      </div>
+      <div class="account-rows">
+        <div class="account-row"><span>所屬公司</span><span x-text="company.name"></span></div>
+        <div class="account-row"><span>權限範圍</span><span x-text="cloud.isAdmin ? '可管理所有公司的報價單' : '僅限本公司報價單'"></span></div>
+        <div class="account-row"><span>雲端報價單</span><span x-text="cloud.list.length ? cloud.list.length + ' 筆' : '—'"></span></div>
+      </div>
+      <div class="account-actions">
+        <button class="btn" @click="openCloud(); closeAccount()">📂 我的雲端報價單</button>
+        <button class="btn btn-danger" @click="cloudLogout()">登出</button>
+      </div>
+      <div class="account-foot">由 <strong x-text="platform.provider"></strong> · <span x-text="platform.system"></span> 提供</div>
     </div>
   </div>
 

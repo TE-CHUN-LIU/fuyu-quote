@@ -143,6 +143,17 @@ const COMPANY_INFO = {
   },
 };
 
+// 平台（家群）品牌資訊 ── 登入頁與帳號管理用
+const PLATFORM_INFO = {
+  brand: '家群',
+  brandEn: 'JIACHUN',
+  system: '企業報價系統',
+  tagline: '整體規劃 × 發包整合 · 報價雲端化',
+  provider: '家群企業',
+  domain: 'jiachun-mmt.com',
+  site: 'https://web.jiachun-mmt.com',
+};
+
 // 預設備註條款
 const DEFAULT_TERMS = [
   '本報價於開單日起 7 日內有效。確認無議，並煩請簽名蓋章以便日後請款附上。',

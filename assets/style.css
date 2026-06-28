@@ -65,6 +65,131 @@ body {
   color: #555;
 }
 
+/* 帳號 chip（已登入） */
+.cloud-who-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  max-width: 220px;
+}
+.cloud-who-btn > span:nth-child(2) {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ===== 家群品牌登入頁 ===== */
+.login-overlay, .account-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(20, 28, 40, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.login-card {
+  position: relative;
+  width: 100%; max-width: 380px;
+  background: #fff; border-radius: 16px;
+  padding: 34px 30px 24px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+  text-align: center;
+}
+.login-close {
+  position: absolute; top: 12px; right: 14px;
+  border: none; background: none; color: #aaa;
+  font-size: 18px; cursor: pointer; line-height: 1;
+}
+.login-close:hover { color: #555; }
+.login-brand {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin-bottom: 6px;
+}
+.login-logo {
+  width: 52px; height: 52px; border-radius: 13px;
+  background: linear-gradient(135deg, #2e4a6b, #4a6fa0);
+  color: #fff; font-size: 26px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(46,74,107,0.4);
+}
+.login-wordmark { text-align: left; }
+.lw-cn { font-size: 21px; font-weight: 800; color: #1f2d3d; letter-spacing: 1px; display: flex; align-items: baseline; gap: 7px; }
+.lw-sys { font-size: 13px; font-weight: 600; color: #6b7a8d; letter-spacing: 0; }
+.lw-en { font-size: 11px; letter-spacing: 4px; color: #9aa7b4; font-weight: 600; }
+.login-tagline { font-size: 12px; color: #8a96a3; margin: 4px 0 22px; }
+
+.login-form { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.login-field { display: flex; flex-direction: column; gap: 5px; }
+.login-field > span { font-size: 12px; color: #6b7a8d; font-weight: 600; }
+.login-field input {
+  border: 1px solid #d7dde5; border-radius: 9px;
+  padding: 11px 13px; font-size: 14px; color: #1f2d3d;
+  font-family: inherit; transition: border-color .15s, box-shadow .15s;
+}
+.login-field input:focus {
+  outline: none; border-color: #2e4a6b;
+  box-shadow: 0 0 0 3px rgba(46,74,107,0.12);
+}
+.login-err {
+  background: #fdecec; color: #c0392b; border: 1px solid #f5c6c6;
+  border-radius: 8px; padding: 8px 11px; font-size: 12.5px;
+}
+.login-btn {
+  margin-top: 4px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #2e4a6b, #3f6092);
+  color: #fff; font-weight: 700; font-size: 15px;
+  padding: 12px; border-radius: 10px;
+  transition: filter .15s;
+}
+.login-btn:hover { filter: brightness(1.08); }
+.login-btn:disabled { opacity: .6; cursor: default; }
+.login-link {
+  border: none; background: none; cursor: pointer;
+  color: #4a6fa0; font-size: 12.5px; padding: 4px; text-decoration: underline;
+}
+.login-link:disabled { opacity: .5; cursor: default; }
+.login-foot {
+  margin-top: 20px; padding-top: 14px; border-top: 1px solid #eef1f4;
+  font-size: 11.5px; color: #9aa7b4;
+}
+.login-foot strong { color: #6b7a8d; }
+
+/* ===== 帳號管理面板 ===== */
+.account-card {
+  width: 100%; max-width: 380px;
+  background: #fff; border-radius: 16px; overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+}
+.account-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 18px; border-bottom: 1px solid #eef1f4;
+  font-size: 15px;
+}
+.account-id {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 18px; background: #f6f8fb;
+}
+.account-avatar {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, #2e4a6b, #4a6fa0);
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.account-email { font-weight: 700; color: #1f2d3d; word-break: break-all; }
+.account-role { font-size: 12.5px; color: #4a6fa0; margin-top: 2px; font-weight: 600; }
+.account-rows { padding: 6px 18px; }
+.account-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 10px 0; border-bottom: 1px dotted #e6eaef; font-size: 13px;
+}
+.account-row:last-child { border-bottom: none; }
+.account-row > span:first-child { color: #8a96a3; }
+.account-row > span:last-child { color: #1f2d3d; font-weight: 600; text-align: right; }
+.account-actions { display: flex; gap: 10px; padding: 14px 18px; }
+.account-actions .btn { flex: 1; justify-content: center; }
+.account-foot {
+  padding: 12px 18px; background: #f6f8fb; border-top: 1px solid #eef1f4;
+  font-size: 11.5px; color: #9aa7b4; text-align: center;
+}
+.account-foot strong { color: #6b7a8d; }
+
 .toolbar-actions {
   display: flex;
   gap: 8px;

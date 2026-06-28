@@ -54,6 +54,13 @@ function quoteApp() {
       currentId: null, // 目前畫面對應的雲端筆 id；null = 尚未存雲端／新報價單
       busy: false,
       search: '', // 雲端清單搜尋（案場／客戶）
+      // 登入頁 / 帳號管理
+      showLogin: false,
+      showAccount: false,
+      loginEmail: '',
+      loginPass: '',
+      loginErr: '',
+      loginBusy: false,
     },
     groupMode: 'category', // 'category' 依工程分類 / 'floor' 依樓層分類
     floorFilter: '全部',    // '全部' 或某一樓層（只篩選檢視，不影響總計）
@@ -92,6 +99,7 @@ function quoteApp() {
     unitOptions: UNIT_OPTIONS,
     company: COMPANY_INFO,
     terms: DEFAULT_TERMS,
+    platform: PLATFORM_INFO,
 
     get categories() {
       return [...new Set(this.library.map(i => i.category))];
@@ -232,37 +240,83 @@ function quoteApp() {
       }
     },
 
-    // 登入：有打密碼走 email+密碼（管理員用）；只給 email 走 magic link
-    async cloudLogin() {
+    // 開啟家群品牌登入頁
+    cloudLogin() {
       if (!this.cloud.ready) { alert('雲端尚未啟用'); return; }
-      const email = (prompt('登入用 Email：') || '').trim();
-      if (!email) return;
-      const pass = prompt('密碼（留空＝改用 Email 寄登入連結）：') || '';
-      this.cloud.busy = true;
+      this.cloud.loginErr = '';
+      this.cloud.loginPass = '';
+      this.cloud.showLogin = true;
+    },
+
+    closeLogin() {
+      this.cloud.showLogin = false;
+      this.cloud.loginErr = '';
+      this.cloud.loginPass = '';
+    },
+
+    // 帳密登入（管理員 / 一般使用者）
+    async doLogin() {
+      const email = (this.cloud.loginEmail || '').trim();
+      if (!email) { this.cloud.loginErr = '請輸入 Email'; return; }
+      if (!this.cloud.loginPass) { this.cloud.loginErr = '請輸入密碼，或改用下方「寄登入連結」'; return; }
+      this.cloud.loginBusy = true;
+      this.cloud.loginErr = '';
       try {
-        if (pass) {
-          const { error } = await supaClient.auth.signInWithPassword({ email, password: pass });
-          if (error) throw error;
-          alert('登入成功 ☁️');
-        } else {
-          const { error } = await supaClient.auth.signInWithOtp({
-            email,
-            options: { emailRedirectTo: window.location.href.split('#')[0] },
-          });
-          if (error) throw error;
-          alert('登入連結已寄到 ' + email + '，點信裡的連結就會自動登入回到這頁。');
-        }
+        const { error } = await supaClient.auth.signInWithPassword({ email, password: this.cloud.loginPass });
+        if (error) throw error;
+        this.closeLogin();
       } catch (e) {
-        this._cloudErr(e);
+        this.cloud.loginErr = this._loginErrMsg(e);
       } finally {
-        this.cloud.busy = false;
+        this.cloud.loginBusy = false;
       }
+    },
+
+    // 改用 Email 寄登入連結（免密碼）
+    async sendMagicLink() {
+      const email = (this.cloud.loginEmail || '').trim();
+      if (!email) { this.cloud.loginErr = '請先輸入 Email'; return; }
+      this.cloud.loginBusy = true;
+      this.cloud.loginErr = '';
+      try {
+        const { error } = await supaClient.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: window.location.href.split('#')[0] },
+        });
+        if (error) throw error;
+        alert('登入連結已寄到 ' + email + '，點信裡的連結就會自動登入回到這頁。');
+        this.closeLogin();
+      } catch (e) {
+        this.cloud.loginErr = this._loginErrMsg(e);
+      } finally {
+        this.cloud.loginBusy = false;
+      }
+    },
+
+    _loginErrMsg(e) {
+      const msg = (e && e.message) || '';
+      if (/Invalid login|invalid_credentials/i.test(msg)) return '帳號或密碼錯誤';
+      if (/Email not confirmed/i.test(msg)) return '這個帳號的 Email 還沒驗證';
+      if (/rate limit|too many/i.test(msg)) return '嘗試太頻繁，請稍後再試';
+      return msg || '登入失敗';
+    },
+
+    openAccount() { this.cloud.showAccount = true; },
+    closeAccount() { this.cloud.showAccount = false; },
+
+    roleLabel() {
+      if (this.cloud.isAdmin) return '超級管理員（跨公司）';
+      if (this.cloud.role === 'owner') return '管理員（公司負責人）';
+      if (this.cloud.role === 'editor') return '編輯者';
+      if (this.cloud.role === 'viewer') return '檢視者';
+      return '使用者';
     },
 
     async cloudLogout() {
       if (!supaClient) return;
       await supaClient.auth.signOut();
       this.cloud.showPanel = false;
+      this.cloud.showAccount = false;
       this.cloud.currentId = null;
     },
 
