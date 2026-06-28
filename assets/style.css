@@ -616,6 +616,9 @@ table.items .total-cell {
 /* === Lock 預覽模式 / 匯出（PDF·PNG）時切到乾淨檢視 === */
 body.locked .no-print,
 body.exporting .no-print { display: none !important; }
+/* 但鎖定預覽時要保留「返回編輯」浮動鈕，否則無法解鎖 */
+body.locked .unlock-fab { display: inline-flex !important; }
+body.exporting .unlock-fab { display: none !important; }
 body.locked ::placeholder,
 body.exporting ::placeholder { color: transparent !important; }
 body.locked .info-row input,
