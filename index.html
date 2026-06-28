@@ -6,6 +6,7 @@
   <title>富寓室內裝潢公司報價單</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -26,6 +27,10 @@
       <label class="btn" style="cursor:pointer;">
         📤 匯入存檔
         <input type="file" accept=".json" @change="importJson($event)" style="display:none;">
+      </label>
+      <label class="btn" style="cursor:pointer;" :class="{ 'btn-accent': importState.busy }" title="支援 JSON / CSV / Excel / 可選文字 PDF；圖片、掃描 PDF、Numbers 可接 AI 解析">
+        🤖 智慧匯入
+        <input type="file" accept=".json,.csv,.xlsx,.xls,.numbers,.pdf,image/*" @change="importAny($event)" style="display:none;">
       </label>
       <button class="btn" @click="savePdf()" title="把報價單存成 A4 PDF（自動隱藏編輯介面）">📄 存 PDF</button>
       <button class="btn" @click="savePng()" title="把報價單存成 PNG 圖片，可直接傳 LINE">🖼 存 PNG</button>
@@ -222,8 +227,11 @@
                   </select>
                 </td>
                 <td x-show="cols.qty.show"><input type="number" x-model.number="item.qty" min="0" step="0.5"></td>
-                <td x-show="cols.price.show"><input type="number" x-model.number="item.price" min="0"></td>
-                <td class="col-subtotal total-cell" x-show="cols.subtotal.show" x-text="formatMoney(subtotal(item))"></td>
+                <td x-show="cols.price.show">
+                  <input type="number" x-model.number="item.price" min="0" x-show="!contractorMarkup.enabled">
+                  <div class="price-preview" x-show="contractorMarkup.enabled" x-text="formatMoney(quoteUnitPrice(item))"></div>
+                </td>
+                <td class="col-subtotal total-cell" x-show="cols.subtotal.show" x-text="formatMoney(quoteSubtotal(item))"></td>
                 <td x-show="cols.note.show"><textarea x-model="item.note" rows="1" placeholder=""></textarea></td>
                 <td class="no-print" style="white-space:nowrap;">
                   <button class="btn" @click="moveUp(item.id)" title="上移" style="padding:2px 6px;">↑</button>
@@ -249,9 +257,21 @@
 
     <!-- ===== 合計區 ===== -->
     <div class="summary" x-show="items.length > 0">
+      <div class="markup-panel no-print">
+        <label class="markup-check">
+          <input type="checkbox" x-model="contractorMarkup.enabled">
+          <span>統包公司報價</span>
+        </label>
+        <select x-model="contractorMarkup.mode" :disabled="!contractorMarkup.enabled">
+          <option value="percent">利潤%</option>
+          <option value="fixed">固定利潤</option>
+        </select>
+        <input type="number" min="0" step="1" x-model.number="contractorMarkup.value" :disabled="!contractorMarkup.enabled">
+        <span class="markup-total" x-show="contractorMarkup.enabled" x-text="`業主報價 $ ${formatMoney(quoteGrandTotal)}`"></span>
+      </div>
       <div class="summary-row">
         <span>工程總額（未稅）</span>
-        <span x-text="`$ ${formatMoney(grandTotal)}`"></span>
+        <span x-text="`$ ${formatMoney(quoteGrandTotal)}`"></span>
       </div>
       <div class="summary-row no-print">
         <label style="display:flex;align-items:center;gap:6px;">

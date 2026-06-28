@@ -30,6 +30,15 @@ function quoteApp() {
     items: [],
     bankChoice: 'cathay', // 'cathay' 或 'yuanta'
     needInvoice: false,
+    contractorMarkup: {
+      enabled: false,
+      mode: 'percent', // percent 或 fixed
+      value: 0,
+    },
+    importState: {
+      busy: false,
+      lastSource: '',
+    },
     isLocked: false,
     // 雲端狀態
     cloud: {
@@ -109,7 +118,7 @@ function quoteApp() {
       });
       return keys.map(key => {
         const list = map[key];
-        const subtotal = list.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+        const subtotal = list.reduce((s, it) => s + this.quoteSubtotal(it), 0);
         const label = this.groupMode === 'floor' ? `${key} 樓層` : `${key} 工程`;
         return { key, label, items: list, subtotal };
       });
@@ -120,16 +129,25 @@ function quoteApp() {
     get categorySubtotals() {
       const totals = {};
       for (const item of this.items) {
-        const sub = (Number(item.qty) || 0) * (Number(item.price) || 0);
+        const sub = this.quoteSubtotal(item);
         totals[item.category] = (totals[item.category] || 0) + sub;
       }
       return totals;
     },
+    get quoteGrandTotal() {
+      return this.items.reduce((sum, item) => sum + this.quoteSubtotal(item), 0);
+    },
+    get markupAmount() {
+      if (!this.contractorMarkup.enabled) return 0;
+      const value = Math.max(0, Number(this.contractorMarkup.value) || 0);
+      if (this.contractorMarkup.mode === 'fixed') return value;
+      return Math.round(this.grandTotal * value / 100);
+    },
     get tax() {
-      return this.needInvoice ? Math.round(this.grandTotal * 0.05) : 0;
+      return this.needInvoice ? Math.round(this.quoteGrandTotal * 0.05) : 0;
     },
     get finalTotal() {
-      return this.grandTotal + this.tax;
+      return this.quoteGrandTotal + this.tax;
     },
     get payments() {
       const t = this.finalTotal;
@@ -152,6 +170,7 @@ function quoteApp() {
       this.$watch('items', () => this.save(), { deep: true });
       this.$watch('bankChoice', () => this.save());
       this.$watch('needInvoice', () => this.save());
+      this.$watch('contractorMarkup', () => this.save(), { deep: true });
       this.$watch('groupMode', () => this.save());
       this.$watch('floorFilter', () => this.save());
       this.$watch('cols', () => this.save(), { deep: true });
@@ -195,6 +214,7 @@ function quoteApp() {
         items: this.items,
         bankChoice: this.bankChoice,
         needInvoice: this.needInvoice,
+        contractorMarkup: this.contractorMarkup,
         groupMode: this.groupMode,
         floorFilter: this.floorFilter,
         cols: this.cols,
@@ -207,6 +227,9 @@ function quoteApp() {
       this.items = data.items || [];
       this.bankChoice = data.bankChoice || 'cathay';
       this.needInvoice = !!data.needInvoice;
+      Object.assign(this.contractorMarkup, data.contractorMarkup || {});
+      this.contractorMarkup.enabled = !!this.contractorMarkup.enabled;
+      if (!['percent', 'fixed'].includes(this.contractorMarkup.mode)) this.contractorMarkup.mode = 'percent';
       this.groupMode = data.groupMode || 'category';
       this.floorFilter = data.floorFilter || '全部';
       if (data.cols) {
@@ -366,6 +389,23 @@ function quoteApp() {
       return (Number(item.qty) || 0) * (Number(item.price) || 0);
     },
 
+    quoteSubtotal(item) {
+      const base = this.subtotal(item);
+      if (!this.contractorMarkup.enabled || base <= 0) return base;
+      const value = Math.max(0, Number(this.contractorMarkup.value) || 0);
+      if (this.contractorMarkup.mode === 'fixed') {
+        if (this.grandTotal <= 0) return base;
+        return Math.round(base + (base / this.grandTotal) * value);
+      }
+      return Math.round(base * (1 + value / 100));
+    },
+
+    quoteUnitPrice(item) {
+      const qty = Number(item.qty) || 0;
+      if (qty <= 0) return Number(item.price) || 0;
+      return Math.round(this.quoteSubtotal(item) / qty);
+    },
+
     formatMoney(n) {
       return new Intl.NumberFormat('zh-TW').format(Math.round(n || 0));
     },
@@ -410,6 +450,7 @@ function quoteApp() {
         items: this.items,
         bankChoice: this.bankChoice,
         needInvoice: this.needInvoice,
+        contractorMarkup: this.contractorMarkup,
         groupMode: this.groupMode,
         floorFilter: this.floorFilter,
         cols: this.cols,
@@ -427,6 +468,9 @@ function quoteApp() {
         this.items = data.items || [];
         this.bankChoice = data.bankChoice || 'cathay';
         this.needInvoice = !!data.needInvoice;
+        Object.assign(this.contractorMarkup, data.contractorMarkup || {});
+        this.contractorMarkup.enabled = !!this.contractorMarkup.enabled;
+        if (!['percent', 'fixed'].includes(this.contractorMarkup.mode)) this.contractorMarkup.mode = 'percent';
         this.groupMode = data.groupMode || 'category';
         this.floorFilter = data.floorFilter || '全部';
         if (data.cols) {
@@ -452,6 +496,7 @@ function quoteApp() {
         items: this.items,
         bankChoice: this.bankChoice,
         needInvoice: this.needInvoice,
+        contractorMarkup: this.contractorMarkup,
         exportedAt: new Date().toISOString(),
       };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -472,11 +517,7 @@ function quoteApp() {
         try {
           const data = JSON.parse(e.target.result);
           if (!confirm('將覆蓋目前所有資料，確定匯入？')) return;
-          Object.assign(this.project, data.project || {});
-          Object.assign(this.customer, data.customer || {});
-          this.items = data.items || [];
-          this.bankChoice = data.bankChoice || 'cathay';
-          this.needInvoice = !!data.needInvoice;
+          this._applyData(data);
           alert('匯入成功');
         } catch (err) {
           alert('匯入失敗：' + err.message);
@@ -484,6 +525,410 @@ function quoteApp() {
       };
       reader.readAsText(file);
       event.target.value = '';
+    },
+
+    async importAny(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      this.importState.busy = true;
+      this.importState.lastSource = file.name;
+      try {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (ext === 'json') {
+          const data = JSON.parse(await file.text());
+          if (!confirm('將覆蓋目前所有資料，確定匯入？')) return;
+          this._applyData(data);
+          alert('匯入成功');
+          return;
+        }
+
+        if (['csv', 'xlsx', 'xls'].includes(ext)) {
+          const payload = await this._parseWorkbookFile(file);
+          this._applyImportedPayload(payload, file.name);
+          return;
+        }
+
+        if (ext === 'pdf') {
+          const payload = await this._parsePdfFile(file);
+          if (payload.items.length) {
+            this._applyImportedPayload(payload, file.name);
+            return;
+          }
+          const aiPayload = await this._aiImportFile(file);
+          this._applyImportedPayload(aiPayload, file.name);
+          return;
+        }
+
+        if (ext === 'numbers' || (file.type || '').startsWith('image/')) {
+          const payload = await this._aiImportFile(file);
+          this._applyImportedPayload(payload, file.name);
+          return;
+        }
+
+        alert('此檔案格式尚未支援匯入');
+      } catch (err) {
+        alert('匯入失敗：' + (err?.message || err));
+      } finally {
+        this.importState.busy = false;
+        event.target.value = '';
+      }
+    },
+
+    async _parseWorkbookFile(file) {
+      if (typeof XLSX === 'undefined') {
+        throw new Error('試算表元件尚未載入完成，請重新整理後再試');
+      }
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+      const payload = { project: {}, customer: {}, items: [] };
+      for (const sheetName of workbook.SheetNames) {
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: false, defval: '' });
+        const parsed = this._parseImportRows(rows, sheetName);
+        if (!payload.project.name && parsed.project?.name) payload.project.name = parsed.project.name;
+        payload.items.push(...parsed.items);
+      }
+      return payload;
+    },
+
+    async _parsePdfFile(file) {
+      const pdfLib = window.pdfjsLib;
+      if (!pdfLib) {
+        throw new Error('PDF 解析元件尚未載入完成，請重新整理後再試');
+      }
+      pdfLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfLib.getDocument({ data: buffer }).promise;
+      const payload = { project: {}, customer: {}, items: [] };
+
+      for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
+        const page = await pdf.getPage(pageNo);
+        const textContent = await page.getTextContent();
+        const rows = this._pdfTextItemsToRows(textContent.items || []);
+        const parsed = this._parseImportRows(rows, file.name.replace(/\.pdf$/i, ''));
+        if (!payload.project.name && parsed.project?.name) payload.project.name = parsed.project.name;
+        payload.items.push(...parsed.items);
+      }
+
+      return payload;
+    },
+
+    _pdfTextItemsToRows(items) {
+      const positioned = items
+        .map(item => ({
+          text: this._cleanCell(item.str),
+          x: item.transform?.[4] || 0,
+          y: item.transform?.[5] || 0,
+          width: item.width || 0,
+        }))
+        .filter(item => item.text);
+
+      const lines = [];
+      const yTolerance = 3;
+      for (const item of positioned.sort((a, b) => b.y - a.y || a.x - b.x)) {
+        let line = lines.find(row => Math.abs(row.y - item.y) <= yTolerance);
+        if (!line) {
+          line = { y: item.y, items: [] };
+          lines.push(line);
+        }
+        line.items.push(item);
+      }
+
+      return lines
+        .sort((a, b) => b.y - a.y)
+        .map(line => this._pdfLineToCells(line.items))
+        .filter(row => row.some(Boolean));
+    },
+
+    _pdfLineToCells(items) {
+      const sorted = [...items].sort((a, b) => a.x - b.x);
+      const cells = [];
+      let current = null;
+      const gapThreshold = 9;
+
+      for (const item of sorted) {
+        if (!current) {
+          current = { text: item.text, right: item.x + item.width };
+          continue;
+        }
+        const gap = item.x - current.right;
+        if (gap > gapThreshold) {
+          cells.push(current.text.trim());
+          current = { text: item.text, right: item.x + item.width };
+        } else {
+          current.text += item.text.match(/^[,，.)）]/) ? item.text : ` ${item.text}`;
+          current.right = Math.max(current.right, item.x + item.width);
+        }
+      }
+      if (current) cells.push(current.text.trim());
+      return cells;
+    },
+
+    _parseImportRows(rows, sheetName = '') {
+      const payload = { project: { name: '' }, items: [] };
+      let currentFloor = '';
+      let currentCategory = '木工';
+      let headerMap = null;
+
+      for (const row of rows) {
+        const cells = row.map(v => (v == null ? '' : String(v).trim()));
+        const nonEmpty = cells.filter(Boolean);
+        if (!nonEmpty.length) continue;
+
+        const joined = nonEmpty.join(' ');
+        const projectMatch = joined.match(/(?:案名|案場|工程名稱)[:：\s]*([^\s]+(?:\s*[^\s]+){0,4})/);
+        if (projectMatch && !payload.project.name) payload.project.name = projectMatch[1].trim();
+
+        const maybeHeader = this._makeImportHeaderMap(cells);
+        if (maybeHeader) {
+          headerMap = maybeHeader;
+          continue;
+        }
+
+        if (!nonEmpty.some(cell => this._looksLikeUnit(cell)) && /(木作|木工|泥作|油漆|水電|地板|拆除|衛浴|廚具|系統櫃).*工程/.test(joined)) {
+          currentCategory = this._inferCategory(joined);
+          continue;
+        }
+
+        if (nonEmpty.length === 1) {
+          const only = nonEmpty[0];
+          if (/^(B\d|[1-9]\d?F|全區|全棟|頂樓|室外|其他)$/.test(only)) {
+            currentFloor = only;
+            continue;
+          }
+          if (/工程$/.test(only) || /工程/.test(only)) {
+            currentCategory = this._inferCategory(only);
+            continue;
+          }
+        }
+
+        const item = this._rowToImportItem(cells, headerMap, currentFloor, currentCategory);
+        if (item) payload.items.push(item);
+      }
+
+      if (!payload.project.name && sheetName && sheetName !== 'Sheet1' && sheetName !== '工作表1') {
+        payload.project.name = sheetName;
+      }
+      return payload;
+    },
+
+    _makeImportHeaderMap(cells) {
+      const map = {};
+      cells.forEach((cell, idx) => {
+        const text = cell.replace(/\s/g, '');
+        if (/^(項次|序號|編號)$/.test(text)) map.seq = idx;
+        if (/工程項目|項目及說明|項目名稱|品名/.test(text)) map.name = idx;
+        if (/施做區域|施工區域|區域|位置/.test(text)) map.area = idx;
+        if (/單位/.test(text)) map.unit = idx;
+        if (/數量/.test(text)) map.qty = idx;
+        if (/單價/.test(text)) map.price = idx;
+        if (/小計|總價|金額/.test(text)) map.subtotal = idx;
+        if (/備註|材質|說明/.test(text)) map.note = idx;
+      });
+      return map.name != null && map.unit != null ? map : null;
+    },
+
+    _rowToImportItem(cells, headerMap, currentFloor, currentCategory) {
+      if (headerMap) {
+        const name = this._cleanCell(cells[headerMap.name]);
+        const unit = this._cleanCell(cells[headerMap.unit]);
+        if (name && this._looksLikeUnit(unit)) {
+          const area = this._cleanCell(cells[headerMap.area]);
+          const qty = this._num(cells[headerMap.qty]);
+          let price = this._num(cells[headerMap.price]);
+          const subtotal = this._num(cells[headerMap.subtotal]);
+          if (!price && subtotal && qty) price = Math.round(subtotal / qty);
+          if (!qty && !price && !subtotal) return null;
+          return this._normalizeImportItem({
+            floor: this._inferFloor(name) || this._inferFloor(area) || currentFloor || area || '全棟',
+            category: this._inferCategory(name || currentCategory),
+            name,
+            unit,
+            qty: qty || (subtotal && price ? subtotal / price : 1),
+            price,
+            note: this._cleanCell(cells[headerMap.note]),
+          });
+        }
+      }
+
+      const unitIndex = cells.findIndex(c => this._looksLikeUnit(c));
+      if (unitIndex < 0) return null;
+
+      let raw = null;
+      if (unitIndex === 1) {
+        const n2 = this._num(cells[2]);
+        const n3 = this._num(cells[3]);
+        let price = n2;
+        let qty = n3;
+        if (n2 > 0 && n2 <= 100 && n3 >= 100) {
+          qty = n2;
+          price = n3;
+        }
+        raw = {
+          floor: this._inferFloor(cells[0]) || currentFloor || '',
+          category: currentCategory,
+          name: this._cleanCell(cells[0]),
+          qty,
+          unit: this._cleanCell(cells[1]),
+          price,
+          note: this._cleanCell(cells[5]),
+        };
+      } else if (unitIndex === 3) {
+        raw = {
+          floor: currentFloor || this._inferFloor(cells[0]) || '',
+          category: this._cleanCell(cells[0]) || currentCategory,
+          name: this._cleanCell(cells[1]),
+          qty: this._num(cells[2]),
+          unit: this._cleanCell(cells[3]),
+          price: this._num(cells[4]),
+          note: this._cleanCell(cells[6]),
+        };
+      } else if (unitIndex === 2) {
+        const n3 = this._num(cells[3]);
+        const n4 = this._num(cells[4]);
+        let qty = n4;
+        let price = n3;
+        if (n3 > 0 && n3 <= 100 && n4 >= 100) {
+          qty = n3;
+          price = n4;
+        }
+        const first = this._cleanCell(cells[0]);
+        const second = this._cleanCell(cells[1]);
+        raw = {
+          floor: this._inferFloor(first) || this._inferFloor(second) || currentFloor || second || '全棟',
+          category: currentCategory,
+          name: /^\d+$/.test(first) ? second : first,
+          qty,
+          unit: this._cleanCell(cells[2]),
+          price,
+          note: this._cleanCell(cells[6]),
+        };
+      }
+
+      if (!raw || !raw.name) return null;
+      return this._normalizeImportItem(raw);
+    },
+
+    _normalizeImportItem(raw) {
+      const name = this._cleanCell(raw.name);
+      const unit = this._cleanCell(raw.unit) || '式';
+      const qty = this._num(raw.qty) || 1;
+      const price = this._num(raw.price) || 0;
+      const category = this._normalizeCategory(raw.category, name);
+      if (!name || /^(合計|總計|營業稅|備註|付款方式)$/.test(name)) return null;
+      return {
+        id: crypto.randomUUID(),
+        floor: raw.floor || this._inferFloor(name) || '全棟',
+        category,
+        name,
+        unit,
+        qty,
+        price,
+        note: this._cleanCell(raw.note),
+      };
+    },
+
+    _normalizeCategory(category, name = '') {
+      const allowed = ['木工', '泥作', '油漆', '水電', '地板', '拆除', '衛浴', '廚具', '系統櫃', '其他'];
+      const clean = this._cleanCell(category);
+      if (allowed.includes(clean)) return clean;
+      return this._inferCategory(`${clean} ${name}`);
+    },
+
+    _applyImportedPayload(payload, sourceName) {
+      const items = (payload.items || []).map(item => this._normalizeImportItem(item)).filter(Boolean);
+      if (!items.length) throw new Error('沒有抓到可匯入的報價項目');
+
+      let replace = this.items.length === 0;
+      if (this.items.length) {
+        const action = prompt(`已解析 ${items.length} 個項目。輸入 A 加到目前報價，輸入 R 覆蓋目前項目，留空取消。`, 'A');
+        if (!action) return;
+        replace = action.trim().toUpperCase() === 'R';
+      }
+
+      if (replace) {
+        this.items = items;
+        if (payload.project) Object.assign(this.project, payload.project);
+        if (payload.customer) Object.assign(this.customer, payload.customer);
+      } else {
+        this.items.push(...items);
+      }
+      this.save();
+      alert(`已從「${sourceName}」匯入 ${items.length} 個項目`);
+    },
+
+    async _aiImportFile(file) {
+      const dataUrl = await this._fileToDataUrl(file);
+      const res = await fetch('/api/ai-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type || this._guessMimeType(file.name),
+          dataUrl,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 404 || res.status === 405) {
+          throw new Error('這份檔案需要 AI 匯入後端解析；請用 Vercel 部署版並設定 OPENAI_API_KEY');
+        }
+        throw new Error(data.message || 'AI 解析失敗');
+      }
+      return data;
+    },
+
+    _fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('讀取檔案失敗'));
+        reader.readAsDataURL(file);
+      });
+    },
+
+    _guessMimeType(name) {
+      const ext = (name.split('.').pop() || '').toLowerCase();
+      if (ext === 'pdf') return 'application/pdf';
+      if (ext === 'numbers') return 'application/vnd.apple.numbers';
+      return 'application/octet-stream';
+    },
+
+    _cleanCell(value) {
+      return (value == null ? '' : String(value)).replace(/^=+/, '').replace(/\s+/g, ' ').trim();
+    },
+
+    _num(value) {
+      if (typeof value === 'number') return value;
+      const raw = this._cleanCell(value).replace(/[,$，NT\s]/g, '');
+      if (!raw || /^[-–—]+$/.test(raw)) return 0;
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : 0;
+    },
+
+    _looksLikeUnit(value) {
+      const text = this._cleanCell(value);
+      return this.unitOptions.includes(text) || ['扇', '口', '台', '批', '米', '才'].includes(text);
+    },
+
+    _inferFloor(text) {
+      const s = this._cleanCell(text);
+      const match = s.match(/(?:^|[^A-Z0-9])((?:B\d|[1-9]\d?F|頂樓|全棟|全區|室外|其他))(?:[^A-Z0-9]|$)/i);
+      return match ? match[1].toUpperCase() : '';
+    },
+
+    _inferCategory(text) {
+      const s = this._cleanCell(text);
+      if (/木作|木工|櫃|桌|平釘|天花|窗簾|窗冷|圓弧|包樑|隔間|門|層板|燈溝|軌道|維修孔|展示/.test(s)) return '木工';
+      if (/泥作|磚|防水|粉光|水泥/.test(s)) return '泥作';
+      if (/油漆|乳膠漆|批土/.test(s)) return '油漆';
+      if (/水電|插座|開關|配線|燈具|冷氣/.test(s)) return '水電';
+      if (/地板|SPC|塑膠地磚/.test(s)) return '地板';
+      if (/拆除|清運/.test(s)) return '拆除';
+      if (/衛浴|馬桶|洗手台|浴缸|淋浴/.test(s)) return '衛浴';
+      if (/廚|水槽|檯面|排油煙/.test(s)) return '廚具';
+      if (/系統櫃|衣櫃|書櫃|鞋櫃|電視櫃/.test(s)) return '系統櫃';
+      return '其他';
     },
 
     toggleLock() {
@@ -571,7 +1016,7 @@ function quoteApp() {
       for (const g of this.groups) {
         rows += `<tr><td colspan="${n}" style="border:1px solid #ccc;padding:6px 8px;background:#eaf0f6;font-weight:600;font-size:13px;">${e(g.label)}<span style="float:right">小計 $ ${m(g.subtotal)}</span></td></tr>`;
         for (const it of g.items) {
-          const v = { floor: it.floor, name: it.name, unit: it.unit, qty: (Number(it.qty) || 0), price: m(it.price), subtotal: m(this.subtotal(it)), note: it.note };
+          const v = { floor: it.floor, name: it.name, unit: it.unit, qty: (Number(it.qty) || 0), price: m(this.quoteUnitPrice(it)), subtotal: m(this.quoteSubtotal(it)), note: it.note };
           rows += '<tr>' + cols.map(x =>
             `<td style="border:1px solid #ccc;padding:5px 8px;font-size:12px;text-align:${x[3]};white-space:pre-wrap;word-break:break-word;vertical-align:top;">${e(v[x[0]])}</td>`
           ).join('') + '</tr>';
@@ -606,7 +1051,7 @@ function quoteApp() {
         </table>
         <table style="width:100%;border-collapse:collapse;margin-top:6px;"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>
         <div style="margin-top:10px;margin-left:auto;width:300px;font-size:13px;">
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>工程總額（未稅）</span><span>$ ${m(this.grandTotal)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>工程總額（未稅）</span><span>$ ${m(this.quoteGrandTotal)}</span></div>
           ${taxRow}
           <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid #2e4a6b;font-weight:700;font-size:15px;"><span>${this.needInvoice ? '總計（含稅）' : '總計（未含稅）'}</span><span>$ ${m(this.finalTotal)}</span></div>
         </div>
@@ -732,8 +1177,8 @@ function quoteApp() {
             it.name,
             it.unit,
             Number(it.qty) || 0,
-            Number(it.price) || 0,
-            this.subtotal(it),
+            this.quoteUnitPrice(it),
+            this.quoteSubtotal(it),
             it.note || '',
           ]);
         }
@@ -741,7 +1186,7 @@ function quoteApp() {
       }
       r.push([]);
       // 合計
-      r.push(['', '工程總額（未稅）', '', '', '', this.grandTotal]);
+      r.push(['', '工程總額（未稅）', '', '', '', this.quoteGrandTotal]);
       if (this.needInvoice) {
         r.push(['', '營業稅 5%', '', '', '', this.tax]);
       }

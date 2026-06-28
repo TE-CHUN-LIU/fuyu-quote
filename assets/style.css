@@ -42,7 +42,12 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-.toolbar-actions { display: flex; gap: 8px; }
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 
 .btn {
   padding: 8px 14px;
@@ -262,6 +267,13 @@ table.items .total-cell {
   padding-right: 8px;
   font-variant-numeric: tabular-nums;
 }
+.price-preview {
+  width: 100%;
+  min-height: 1.7em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
 
 .add-row {
   display: flex;
@@ -304,6 +316,40 @@ table.items .total-cell {
   border-top: 1px solid var(--accent);
   margin-top: 8px;
   padding-top: 8px;
+}
+.markup-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(200, 155, 60, .55);
+}
+.markup-panel select,
+.markup-panel input[type=number] {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+}
+.markup-panel input[type=number] {
+  width: 96px;
+  text-align: right;
+}
+.markup-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.markup-total {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--primary);
 }
 
 .payment-schedule {

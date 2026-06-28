@@ -9,8 +9,10 @@
 - **自動計算**：數量 × 單價 → 小計 → 分類加總 → 三期付款（30/40/30）
 - **發票切換**：勾選後自動加 5% 營業稅
 - **匯款帳戶**：可在「國泰世華（個人戶）」與「元大銀行（公司戶）」之間切換
+- **統包利潤**：可切換「統包公司報價」，用百分比或固定金額加利潤，輸出給業主時不顯示原始單價
 - **自動暫存**：所有資料存 localStorage，關閉瀏覽器資料不丟
 - **匯出／匯入 JSON**：方便備份與在不同設備間轉移
+- **智慧匯入**：JSON / CSV / Excel / 可選文字 PDF 可直接匯入；掃描 PDF、圖片、Numbers 可接 `/api/ai-import` 走 AI 解析
 - **列印優化**：CSS `@media print` 控制版型，直接列印或存 PDF
 
 ## 使用方式
@@ -49,6 +51,19 @@ python3 -m http.server 8000
 - `UNIT_OPTIONS` — 單位下拉選項
 
 修改後 reload 頁面即生效。
+
+## AI 匯入設定
+
+PDF、圖片、Numbers 的智慧匯入需要在 Vercel 設定：
+
+```bash
+OPENAI_API_KEY=你的 OpenAI API Key
+OPENAI_MODEL=gpt-5.5
+```
+
+沒有設定金鑰時，Excel / CSV / JSON / 可選文字 PDF 匯入仍可使用，掃描 PDF / 圖片 / Numbers 會提示 AI 匯入尚未啟用。
+
+訂閱制與管理權限的正式升級規格放在 `docs/saas-subscription-roadmap.md`。
 
 ## 來源
 
