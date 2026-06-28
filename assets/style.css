@@ -35,11 +35,26 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 16px;
   padding: 12px 16px;
   background: var(--paper);
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.toolbar-hint {
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #888;
+}
+
+.toolbar-hint strong {
+  color: #b45309;
 }
 
 .toolbar-actions {
