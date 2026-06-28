@@ -604,16 +604,19 @@ function quoteApp() {
       for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
         const page = await pdf.getPage(pageNo);
         const textContent = await page.getTextContent();
-        const rows = this._pdfTextItemsToRows(textContent.items || []);
+        const textLines = this._pdfTextItemsToLines(textContent.items || []);
+        const rows = textLines.map(line => line.cells);
         const parsed = this._parseImportRows(rows, file.name.replace(/\.pdf$/i, ''));
+        const fallback = this._parseImportTextLines(textLines.map(line => line.text), file.name.replace(/\.pdf$/i, ''));
         if (!payload.project.name && parsed.project?.name) payload.project.name = parsed.project.name;
-        payload.items.push(...parsed.items);
+        if (!payload.project.name && fallback.project?.name) payload.project.name = fallback.project.name;
+        payload.items.push(...this._mergeImportItems(parsed.items, fallback.items));
       }
 
       return payload;
     },
 
-    _pdfTextItemsToRows(items) {
+    _pdfTextItemsToLines(items) {
       const positioned = items
         .map(item => ({
           text: this._cleanCell(item.str),
@@ -636,8 +639,14 @@ function quoteApp() {
 
       return lines
         .sort((a, b) => b.y - a.y)
-        .map(line => this._pdfLineToCells(line.items))
-        .filter(row => row.some(Boolean));
+        .map(line => {
+          const cells = this._pdfLineToCells(line.items);
+          return {
+            cells,
+            text: cells.join(' ').replace(/\s+/g, ' ').trim(),
+          };
+        })
+        .filter(line => line.text);
     },
 
     _pdfLineToCells(items) {
@@ -662,6 +671,114 @@ function quoteApp() {
       }
       if (current) cells.push(current.text.trim());
       return cells;
+    },
+
+    _parseImportTextLines(lines, sheetName = '') {
+      const payload = { project: { name: '' }, items: [] };
+      let currentCategory = '木工';
+      let currentFloor = '';
+
+      for (const line of lines) {
+        const text = this._cleanCell(line);
+        if (!text) continue;
+
+        const projectMatch = text.match(/(?:案名|案場|工程名稱)[:：\s]*([^\s]+(?:\s*[^\s]+){0,4})/);
+        if (projectMatch && !payload.project.name) payload.project.name = projectMatch[1].trim();
+
+        if (!this._lineHasUnit(text)) {
+          if (/^(B\d|[1-9]\d?F|全區|全棟|頂樓|室外|其他)$/.test(text)) currentFloor = text;
+          if (/(木作|木工|泥作|油漆|水電|地板|拆除|衛浴|廚具|系統櫃).*工程/.test(text)) currentCategory = this._inferCategory(text);
+          continue;
+        }
+
+        const item = this._lineToImportItem(text, currentFloor, currentCategory);
+        if (item) payload.items.push(item);
+      }
+
+      if (!payload.project.name && sheetName && sheetName !== 'Sheet1' && sheetName !== '工作表1') {
+        payload.project.name = sheetName;
+      }
+      return payload;
+    },
+
+    _lineHasUnit(text) {
+      const unitPattern = this._unitRegexSource();
+      return new RegExp(`\\s(${unitPattern})\\s`).test(` ${text} `);
+    },
+
+    _lineToImportItem(text, currentFloor = '', currentCategory = '木工') {
+      const clean = this._cleanCell(text)
+        .replace(/^\d+\s+/, '')
+        .replace(/\s+-$/, '')
+        .trim();
+      if (/^(合計|總計|營業稅|備註|付款方式|\*)/.test(clean)) return null;
+
+      const unitPattern = this._unitRegexSource();
+      const match = clean.match(new RegExp(`^(.+?)\\s+(${unitPattern})\\s+([\\d,]+(?:\\.\\d+)?)(?:\\s+([\\d,]+(?:\\.\\d+)?))?(?:\\s+([\\d,]+(?:\\.\\d+)?))?(?:\\s+(.+))?$`));
+      if (!match) return null;
+
+      let name = this._cleanCell(match[1]);
+      const unit = match[2];
+      const numbers = [match[3], match[4], match[5]].filter(Boolean).map(v => this._num(v));
+      const note = this._cleanCell(match[6]);
+      if (!name || !numbers.length) return null;
+
+      const parts = name.split(/\s+/).filter(Boolean);
+      let area = '';
+      if (parts.length > 1 && /^(B\d|[1-9]\d?F|全區|全棟|頂樓|室外|其他)$/.test(parts[parts.length - 1])) {
+        area = parts.pop();
+        name = parts.join(' ');
+      }
+
+      let qty = 1;
+      let price = 0;
+      if (numbers.length >= 3) {
+        if (numbers[0] > 0 && numbers[0] <= 100 && numbers[1] >= 100) {
+          qty = numbers[0];
+          price = numbers[1];
+        } else {
+          price = numbers[0];
+          qty = numbers[1] || 1;
+        }
+      } else if (numbers.length === 2) {
+        if (numbers[0] > 0 && numbers[0] <= 100 && numbers[1] >= 100) {
+          qty = numbers[0];
+          price = numbers[1];
+        } else {
+          price = numbers[0];
+          qty = numbers[1] || 1;
+        }
+      } else {
+        price = numbers[0];
+      }
+
+      return this._normalizeImportItem({
+        floor: this._inferFloor(name) || this._inferFloor(area) || currentFloor || area || '全棟',
+        category: this._inferCategory(`${currentCategory} ${name}`),
+        name,
+        unit,
+        qty,
+        price,
+        note,
+      });
+    },
+
+    _mergeImportItems(...groups) {
+      const seen = new Set();
+      const merged = [];
+      for (const item of groups.flat()) {
+        const key = [item.name, item.unit, item.qty, item.price].join('|');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(item);
+      }
+      return merged;
+    },
+
+    _unitRegexSource() {
+      return [...new Set([...this.unitOptions, '扇', '口', '台', '批', '米', '才'])]
+        .map(unit => unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
     },
 
     _parseImportRows(rows, sheetName = '') {
