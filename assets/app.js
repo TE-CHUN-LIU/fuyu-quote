@@ -1341,19 +1341,24 @@ function quoteApp() {
           windowWidth: node.offsetWidth,
           windowHeight: node.offsetHeight,
         });
-        // 收集「安全分頁點」：每個內容列、條款項、大區塊的底緣（canvas 像素）
-        // 只在這些邊界斷頁，就不會把任何一行字或一列切成兩半。
+        // 收集「安全分頁點」：每個內容列、條款項、大區塊的底緣。
+        // 用「佔整張的比例 × 實際 canvas 高度」換算，避免 html2canvas 縮放誤差
+        // 累積到後面幾頁把座標偏掉（這正是條款被切到的主因）。
         // 排除 thead 與 .sec-row（分類標題列）→ 標題不會單獨落在頁尾。
-        const top = node.getBoundingClientRect().top;
+        const nodeRect = node.getBoundingClientRect();
+        const nodeTop = nodeRect.top;
+        const nodeH = nodeRect.height || 1;
+        const ch = canvas.height;
+        const toCanvasY = clientY => Math.round((clientY - nodeTop) / nodeH * ch);
         const set = new Set();
         node.querySelectorAll('tbody tr:not(.sec-row), ol > li, [data-block]').forEach(el => {
-          const b = Math.round((el.getBoundingClientRect().bottom - top) * scale);
+          const b = toCanvasY(el.getBoundingClientRect().bottom);
           if (b > 0) set.add(b);
         });
         breaks = [...set].sort((a, b) => a - b);
-        // 簽章區頂緣（canvas 像素）→ 用來把簽章區推到獨立的最後一頁
+        // 簽章區頂緣 → 用來把簽章區推到獨立的最後一頁
         const sig = node.querySelector('[data-sig]');
-        sigTop = sig ? Math.round((sig.getBoundingClientRect().top - top) * scale) : 0;
+        sigTop = sig ? toCanvasY(sig.getBoundingClientRect().top) : 0;
       } catch (e) {
         alert('產生影像失敗：' + e.message);
       } finally {
