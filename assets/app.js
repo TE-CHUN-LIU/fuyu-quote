@@ -3,10 +3,9 @@
 
 const STORAGE_KEY = 'fuyu-quote-v1';
 
-// === 雲端（MMT 共用的 Supabase；資料表受密碼把關，外部讀不到） ===
+// === 雲端（MMT 共用的 Supabase；Supabase Auth 登入 + RLS 依公司隔離） ===
 const SUPA_URL = 'https://ulaumiqgrazbpdpykgsw.supabase.co';
 const SUPA_KEY = 'sb_publishable_hqupVgCRCxuMKb6UJXLglg_cEB-rifP';
-const CLOUD_PASS_KEY = 'fuyu-cloud-pass';
 let supaClient = null; // 模組層持有，不放進 Alpine 反應式 state
 
 function quoteApp() {
@@ -40,10 +39,14 @@ function quoteApp() {
       lastSource: '',
     },
     isLocked: false,
-    // 雲端狀態
+    // 雲端狀態（Supabase Auth 登入制）
     cloud: {
       ready: false,
-      pass: localStorage.getItem(CLOUD_PASS_KEY) || '',
+      user: null,      // 已登入的 Supabase 使用者；null = 未登入
+      email: '',       // 顯示用 email
+      orgId: null,     // 所屬公司 id（登入後由 fuyu_ensure_org 取得）
+      role: '',        // 在該公司的角色
+      isAdmin: false,  // 是否平台超級管理員（跨公司）
       list: [],
       showPanel: false,
       currentId: null, // 目前畫面對應的雲端筆 id；null = 尚未存雲端／新報價單
@@ -189,22 +192,79 @@ function quoteApp() {
 
     cloudInit() {
       try {
-        if (window.supabase && SUPA_URL) {
-          supaClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: false } });
-          this.cloud.ready = true;
-        }
+        if (!window.supabase || !SUPA_URL) return;
+        supaClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+        });
+        this.cloud.ready = true;
+        // 還原既有登入 + 監聽登入狀態變化（magic link 點回來時觸發）
+        supaClient.auth.getSession().then(({ data }) => this._applySession(data.session));
+        supaClient.auth.onAuthStateChange((_e, session) => this._applySession(session));
       } catch (e) {
         console.error('雲端初始化失敗', e);
       }
     },
 
-    _ensurePass() {
-      if (this.cloud.pass) return true;
-      const p = prompt('請輸入富寓雲端密碼：');
-      if (!p) return false;
-      this.cloud.pass = p.trim();
-      localStorage.setItem(CLOUD_PASS_KEY, this.cloud.pass);
-      return true;
+    _applySession(session) {
+      const user = session?.user || null;
+      this.cloud.user = user;
+      this.cloud.email = user?.email || '';
+      if (user) {
+        this._loadOrg();
+      } else {
+        this.cloud.orgId = null;
+        this.cloud.role = '';
+        this.cloud.isAdmin = false;
+        this.cloud.list = [];
+      }
+    },
+
+    // 登入：有打密碼走 email+密碼（管理員用）；只給 email 走 magic link
+    async cloudLogin() {
+      if (!this.cloud.ready) { alert('雲端尚未啟用'); return; }
+      const email = (prompt('登入用 Email：') || '').trim();
+      if (!email) return;
+      const pass = prompt('密碼（留空＝改用 Email 寄登入連結）：') || '';
+      this.cloud.busy = true;
+      try {
+        if (pass) {
+          const { error } = await supaClient.auth.signInWithPassword({ email, password: pass });
+          if (error) throw error;
+          alert('登入成功 ☁️');
+        } else {
+          const { error } = await supaClient.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: window.location.href.split('#')[0] },
+          });
+          if (error) throw error;
+          alert('登入連結已寄到 ' + email + '，點信裡的連結就會自動登入回到這頁。');
+        }
+      } catch (e) {
+        this._cloudErr(e);
+      } finally {
+        this.cloud.busy = false;
+      }
+    },
+
+    async cloudLogout() {
+      if (!supaClient) return;
+      await supaClient.auth.signOut();
+      this.cloud.showPanel = false;
+      this.cloud.currentId = null;
+    },
+
+    // 取得（必要時建立）所屬公司，並判斷是否平台超級管理員
+    async _loadOrg() {
+      try {
+        const { data: orgId, error } = await supaClient.rpc('fuyu_ensure_org');
+        if (error) throw error;
+        this.cloud.orgId = orgId || null;
+        const { data: adminRow } = await supaClient.rpc('fuyu_is_platform_admin');
+        this.cloud.isAdmin = !!adminRow;
+        this.cloud.role = this.cloud.isAdmin ? 'admin' : 'owner';
+      } catch (e) {
+        console.error('讀取公司資料失敗', e);
+      }
     },
 
     _collectData() {
@@ -241,18 +301,27 @@ function quoteApp() {
 
     async cloudSave() {
       if (!this.cloud.ready) { alert('雲端尚未啟用'); return; }
-      if (!this._ensurePass()) return;
+      if (!this.cloud.user) { await this.cloudLogin(); return; }
+      if (!this.cloud.orgId) { alert('找不到你的公司資料，請重新登入'); return; }
       this.cloud.busy = true;
       try {
-        const { data, error } = await supaClient.rpc('fuyu_upsert', {
-          pass: this.cloud.pass,
-          p_id: this.cloud.currentId,
-          p_customer: this.customer.name || '未命名',
-          p_project: this.project.name || '',
-          p_data: this._collectData(),
-        });
-        if (error) throw error;
-        this.cloud.currentId = data;
+        const payload = {
+          customer_name: this.customer.name || '未命名',
+          project_name: this.project.name || '',
+          data: this._collectData(),
+          updated_at: new Date().toISOString(),
+        };
+        let res;
+        if (this.cloud.currentId) {
+          res = await supaClient.from('quotes').update(payload)
+            .eq('id', this.cloud.currentId).select('id').single();
+        } else {
+          payload.organization_id = this.cloud.orgId;
+          payload.created_by = this.cloud.user.id;
+          res = await supaClient.from('quotes').insert(payload).select('id').single();
+        }
+        if (res.error) throw res.error;
+        this.cloud.currentId = res.data.id;
         alert('已存到雲端 ☁️');
       } catch (e) {
         this._cloudErr(e);
@@ -263,7 +332,7 @@ function quoteApp() {
 
     async openCloud() {
       if (!this.cloud.ready) { alert('雲端尚未啟用'); return; }
-      if (!this._ensurePass()) return;
+      if (!this.cloud.user) { await this.cloudLogin(); return; }
       await this.refreshCloud();
       this.cloud.showPanel = true;
     },
@@ -271,7 +340,9 @@ function quoteApp() {
     async refreshCloud() {
       this.cloud.busy = true;
       try {
-        const { data, error } = await supaClient.rpc('fuyu_list', { pass: this.cloud.pass });
+        const { data, error } = await supaClient.from('quotes')
+          .select('id, customer_name, project_name, data, updated_at')
+          .order('updated_at', { ascending: false });
         if (error) throw error;
         this.cloud.list = data || [];
       } catch (e) {
@@ -293,7 +364,7 @@ function quoteApp() {
       if (!confirm(`刪除雲端的「${row.customer_name || '未命名'}」？此動作無法復原。`)) return;
       this.cloud.busy = true;
       try {
-        const { error } = await supaClient.rpc('fuyu_delete', { pass: this.cloud.pass, p_id: row.id });
+        const { error } = await supaClient.from('quotes').delete().eq('id', row.id);
         if (error) throw error;
         if (this.cloud.currentId === row.id) this.cloud.currentId = null;
         await this.refreshCloud();
@@ -313,10 +384,13 @@ function quoteApp() {
     _cloudErr(e) {
       console.error(e);
       const msg = (e && e.message) || '';
-      if (msg.includes('unauthorized')) {
-        alert('雲端密碼錯誤，請重新輸入');
-        this.cloud.pass = '';
-        localStorage.removeItem(CLOUD_PASS_KEY);
+      const code = (e && e.code) || '';
+      if (/Invalid login|invalid_credentials/i.test(msg)) {
+        alert('帳號或密碼錯誤');
+      } else if (code === '42501' || /row-level security|violates row-level/i.test(msg)) {
+        alert('沒有權限或訂閱已到期，無法存到雲端。');
+      } else if (/Email not confirmed/i.test(msg)) {
+        alert('這個帳號的 Email 還沒驗證，請先收信點驗證連結。');
       } else {
         alert('雲端操作失敗：' + msg);
       }

@@ -166,35 +166,99 @@ create policy aijob_select on public.ai_import_jobs
   for select using (public.is_org_member(organization_id));
 
 -- ──────────────────────────────────────────────
--- 5. 註冊即建公司：新使用者第一次登入時自動開一間個人公司並設為 owner
---    （之後可改成邀請制；先用這個讓單人立刻能用）
+-- 5. 第一次登入時自建公司（冪等 RPC，不掛全域 auth.users trigger）
+--    ⚠️ 本 Supabase 為 MMT 共用專案：若掛 on auth.users 的 trigger，
+--       會對「整個專案所有新註冊者」都開一間富寓公司，污染其他用途。
+--       因此改由前端登入後呼叫 fuyu_ensure_org()，只有用富寓的人才會建公司。
 -- ──────────────────────────────────────────────
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare new_org uuid;
+create or replace function public.fuyu_ensure_org()
+returns uuid language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  existing uuid;
+  new_org uuid;
+  uname text;
 begin
+  if uid is null then raise exception 'not authenticated'; end if;
+
+  select organization_id into existing
+    from public.organization_members where user_id = uid limit 1;
+  if existing is not null then return existing; end if;
+
+  select coalesce(raw_user_meta_data->>'full_name', split_part(email, '@', 1), '我的公司')
+    into uname from auth.users where id = uid;
+
   insert into public.organizations(name, slug)
-    values (
-      coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1), '我的公司'),
-      'org-' || replace(new.id::text, '-', '')
-    )
+    values (coalesce(uname, '我的公司'), 'org-' || replace(uid::text, '-', ''))
     returning id into new_org;
 
   insert into public.organization_members(organization_id, user_id, role)
-    values (new_org, new.id, 'owner');
+    values (new_org, uid, 'owner');
 
   insert into public.subscriptions(organization_id, status, plan, current_period_end)
     values (new_org, 'trialing', 'free', now() + interval '14 days');
 
-  return new;
+  return new_org;
 end; $$;
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
+grant execute on function public.fuyu_ensure_org() to authenticated;
 
--- 完成。下一步（前端）：
---  1. index.html 載入 Supabase Auth（magic link 或 Google），登入後才顯示雲端/AI 按鈕。
---  2. app.js 雲端 list/upsert/delete 改打 quotes 表（帶 session JWT，RLS 自動隔離公司）。
---  3. /api/ai-import 先用 JWT 查 org → org_subscription_active() gate，再記一筆 ai_import_jobs。
+-- ──────────────────────────────────────────────
+-- 6. 平台超級管理員（跨公司、看得到/改得了全部資料）
+--    密碼不寫在這裡、也不進 git：管理員帳號在 Supabase Auth 建立，
+--    這裡只記「哪個 user 是超管」。設定步驟見檔尾。
+-- ──────────────────────────────────────────────
+create table if not exists public.platform_admins (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.platform_admins enable row level security;
+-- 只有超管自己讀得到這張表（避免一般使用者探測誰是超管）
+drop policy if exists padmin_self on public.platform_admins;
+create policy padmin_self on public.platform_admins
+  for select using (user_id = auth.uid());
+
+create or replace function public.is_platform_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.platform_admins where user_id = auth.uid());
+$$;
+
+-- 給前端判斷是否顯示「管理員」介面用
+create or replace function public.fuyu_is_platform_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_platform_admin();
+$$;
+grant execute on function public.fuyu_is_platform_admin() to authenticated;
+
+-- 超管的全表通行 policy（PERMISSIVE，與上面各表的成員 policy 以 OR 合併）
+drop policy if exists org_admin_all    on public.organizations;
+create policy org_admin_all    on public.organizations
+  for all using (public.is_platform_admin()) with check (public.is_platform_admin());
+drop policy if exists mem_admin_all    on public.organization_members;
+create policy mem_admin_all    on public.organization_members
+  for all using (public.is_platform_admin()) with check (public.is_platform_admin());
+drop policy if exists sub_admin_all    on public.subscriptions;
+create policy sub_admin_all    on public.subscriptions
+  for all using (public.is_platform_admin()) with check (public.is_platform_admin());
+drop policy if exists quote_admin_all  on public.quotes;
+create policy quote_admin_all  on public.quotes
+  for all using (public.is_platform_admin()) with check (public.is_platform_admin());
+drop policy if exists aijob_admin_all  on public.ai_import_jobs;
+create policy aijob_admin_all  on public.ai_import_jobs
+  for all using (public.is_platform_admin()) with check (public.is_platform_admin());
+
+-- ──────────────────────────────────────────────
+-- 設定超級管理員（在 Supabase 後台做，不要寫進 git）
+-- ──────────────────────────────────────────────
+-- 1. Supabase → Authentication → Users → Add user：
+--    填你的 Email、設密碼、勾「Auto Confirm User」。
+-- 2. 回到 SQL Editor，把下面的 Email 換成剛建立的，執行一次：
+--      insert into public.platform_admins(user_id)
+--      select id from auth.users where email = '你的Email'
+--      on conflict do nothing;
+-- 之後用該帳號登入 fuyu，就會自動有跨公司超管權限。
+
+-- 完成。下一步（前端已接好）：
+--  1. index.html / app.js 已用 Supabase Auth 登入，雲端讀寫改打 quotes 表（RLS 依公司隔離）。
+--  2. 待辦：/api/ai-import 改成驗 JWT → org_subscription_active() gate，再記一筆 ai_import_jobs。
+--  3. 待辦：把舊 fuyu_quotes（共用密碼版）的資料一次性搬進 quotes（需指定歸屬公司）。

@@ -21,8 +21,13 @@
   <div class="toolbar no-print">
     <div><strong>富寓報價單編輯器</strong>　<span style="color:#888;font-size:12px;">自動暫存中</span></div>
     <div class="toolbar-actions">
-      <button class="btn btn-primary" @click="cloudSave()" :disabled="cloud.busy" x-show="cloud.ready" title="存到雲端，換手機/電腦都叫得回來">☁️ 存到雲端</button>
-      <button class="btn" @click="openCloud()" :disabled="cloud.busy" x-show="cloud.ready" title="叫出雲端存過的報價單">📂 雲端清單</button>
+      <button class="btn btn-primary" @click="cloudLogin()" :disabled="cloud.busy" x-show="cloud.ready && !cloud.user" title="用 Email 登入後即可把報價單存到雲端">🔑 登入雲端</button>
+      <button class="btn btn-primary" @click="cloudSave()" :disabled="cloud.busy" x-show="cloud.ready && cloud.user" title="存到雲端，換手機/電腦都叫得回來">☁️ 存到雲端</button>
+      <button class="btn" @click="openCloud()" :disabled="cloud.busy" x-show="cloud.ready && cloud.user" title="叫出雲端存過的報價單">📂 雲端清單</button>
+      <span class="cloud-who" x-show="cloud.ready && cloud.user" x-cloak>
+        <span x-text="cloud.isAdmin ? '👑 ' + cloud.email : cloud.email"></span>
+        <button class="btn" style="font-size:11px;padding:3px 8px;" @click="cloudLogout()">登出</button>
+      </span>
       <button class="btn" @click="exportJson()" title="把目前報價單存成檔案，下次用『匯入存檔』叫回來繼續編輯">💾 存檔</button>
       <label class="btn" style="cursor:pointer;">
         📤 匯入存檔
