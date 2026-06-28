@@ -1252,7 +1252,7 @@ function quoteApp() {
       const node = document.createElement('div');
       node.style.cssText = "width:820px;background:#fff;padding:28px 32px;font-family:'PingFang TC','Heiti TC',sans-serif;color:#1a1a1a;box-sizing:border-box;";
       node.innerHTML = `
-        <div style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #2e4a6b;padding-bottom:12px;">
+        <div data-block style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #2e4a6b;padding-bottom:12px;">
           <img src="assets/logo.png" style="width:60px;height:60px;object-fit:contain;">
           <div style="flex:1;text-align:center;">
             <div style="font-size:20px;font-weight:700;">${e(co.name)}</div>
@@ -1262,7 +1262,7 @@ function quoteApp() {
           </div>
           <div style="width:60px;"></div>
         </div>
-        <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;">
+        <table data-block style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;">
           ${infoRow('工程名稱', pr.name, '估價編號', pr.quoteNo)}
           ${infoRow('報價日期', pr.date, '材　　質', pr.material)}
           ${infoRow('工程地點', pr.location, '現場聯絡', pr.contact)}
@@ -1271,18 +1271,18 @@ function quoteApp() {
           ${infoRow('客戶地址', cu.address, '', '')}
         </table>
         <table style="width:100%;border-collapse:collapse;margin-top:6px;"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>
-        <div style="margin-top:12px;margin-left:auto;width:344px;font-size:13px;border:1px solid #d6dde6;border-radius:2px;overflow:hidden;">
+        <div data-block style="margin-top:12px;margin-left:auto;width:344px;font-size:13px;border:1px solid #d6dde6;border-radius:2px;overflow:hidden;">
           <div style="display:flex;justify-content:space-between;padding:7px 12px;"><span>工程總額（未稅）</span><span>$ ${m(this.quoteGrandTotal)}</span></div>
           ${taxRow}
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#2e4a6b;color:#fff;"><span style="font-size:14px;font-weight:700;">${this.needInvoice ? '總計（含稅）' : '總計（未含稅）'}</span><span style="font-size:19px;font-weight:700;color:#ffd24d;">NT$ ${m(this.finalTotal)} 元整</span></div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:12px;text-align:center;">
+        <div data-block style="display:flex;gap:10px;margin-top:12px;text-align:center;">
           <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款一　進場 30%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.first)}</div></div>
           <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款二　進度 40%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.second)}</div></div>
           <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款三　完工 30%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.third)}</div></div>
         </div>
-        <div style="margin-top:16px;"><strong style="font-size:12px;">備註說明：</strong><ol style="margin:6px 0;padding-left:20px;">${termsHtml}</ol></div>
-        <div style="display:flex;gap:16px;margin-top:14px;">
+        <div data-block style="margin-top:16px;"><strong style="font-size:12px;">備註說明：</strong><ol style="margin:6px 0;padding-left:20px;">${termsHtml}</ol></div>
+        <div data-block style="display:flex;gap:16px;margin-top:14px;">
           <div style="flex:1;border:1px solid #d6dde6;font-size:12px;line-height:1.9;">
             <div style="font-weight:700;background:#eef3f8;color:#2e4a6b;padding:7px 12px;border-bottom:1px solid #d6dde6;">客戶確認章戳</div>
             <div style="padding:10px 12px;">
@@ -1329,50 +1329,82 @@ function quoteApp() {
       }
       await new Promise(r => setTimeout(r, 50));
 
+      const scale = 2;
       let canvas = null;
+      let breaks = [];
       try {
         canvas = await html2canvas(node, {
-          scale: 2,
+          scale,
           backgroundColor: '#ffffff',
           useCORS: true,
           windowWidth: node.offsetWidth,
           windowHeight: node.offsetHeight,
         });
+        // 收集「安全分頁點」：每個表格列、條款項、大區塊的底緣（canvas 像素）
+        // 只在這些邊界斷頁，就不會把任何一行字或一列切成兩半
+        const top = node.getBoundingClientRect().top;
+        const set = new Set();
+        node.querySelectorAll('tr, ol > li, [data-block]').forEach(el => {
+          const b = Math.round((el.getBoundingClientRect().bottom - top) * scale);
+          if (b > 0) set.add(b);
+        });
+        breaks = [...set].sort((a, b) => a - b);
       } catch (e) {
         alert('產生影像失敗：' + e.message);
       } finally {
         wrap.remove();
       }
-      return canvas;
+      return canvas ? { canvas, breaks } : null;
     },
 
     async savePng() {
-      const canvas = await this._capturePaper();
-      if (!canvas) return;
+      const r = await this._capturePaper();
+      if (!r) return;
       const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png');
+      a.href = r.canvas.toDataURL('image/png');
       a.download = this._exportName() + '.png';
       a.click();
     },
 
     async savePdf() {
-      const canvas = await this._capturePaper();
-      if (!canvas) return;
-      const imgData = canvas.toDataURL('image/png');
+      const r = await this._capturePaper();
+      if (!r) return;
+      const { canvas, breaks } = r;
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageW = 210, pageH = 297;
-      const imgW = pageW;
-      const imgH = canvas.height * imgW / canvas.width;
-      let heightLeft = imgH;
-      let position = 0;
-      pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
-      heightLeft -= pageH;
-      while (heightLeft > 0) {
-        position -= pageH;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
-        heightLeft -= pageH;
+      const pageWmm = 210, pageHmm = 297;
+      const cw = canvas.width;
+      const pxPerMm = cw / pageWmm;
+      const pageHpx = Math.floor(pageHmm * pxPerMm); // 一整頁可容納的 canvas 高度
+      const totalH = canvas.height;
+
+      let y = 0;
+      let first = true;
+      let guard = 0;
+      while (y < totalH - 1 && guard++ < 200) {
+        const target = y + pageHpx;
+        let cut;
+        if (target >= totalH) {
+          cut = totalH; // 最後一頁，全部放完
+        } else {
+          // 找 <= target 且 > y 的最大安全分頁點
+          cut = 0;
+          for (const b of breaks) {
+            if (b > y && b <= target) cut = b;
+            else if (b > target) break;
+          }
+          if (cut <= y) cut = target; // 找不到安全點（極長單列）才硬切
+        }
+        const sliceH = cut - y;
+        const page = document.createElement('canvas');
+        page.width = cw;
+        page.height = sliceH;
+        page.getContext('2d').drawImage(canvas, 0, y, cw, sliceH, 0, 0, cw, sliceH);
+        const imgHmm = sliceH / pxPerMm;
+        if (!first) pdf.addPage();
+        pdf.addImage(page.toDataURL('image/png'), 'PNG', 0, 0, pageWmm, imgHmm);
+        first = false;
+        y = cut;
       }
       pdf.save(this._exportName() + '.pdf');
     },
