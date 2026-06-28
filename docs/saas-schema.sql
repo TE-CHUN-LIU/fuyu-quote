@@ -195,8 +195,9 @@ begin
   insert into public.organization_members(organization_id, user_id, role)
     values (new_org, uid, 'owner');
 
+  -- 目前尚未接金流：給「不限期」免費訂閱，避免試用到期被 RLS 鎖住存雲端
   insert into public.subscriptions(organization_id, status, plan, current_period_end)
-    values (new_org, 'trialing', 'free', now() + interval '14 days');
+    values (new_org, 'active', 'free', null);
 
   return new_org;
 end; $$;
