@@ -7,6 +7,7 @@ const STORAGE_KEY = 'fuyu-quote-v1';
 const SUPA_URL = 'https://ulaumiqgrazbpdpykgsw.supabase.co';
 const SUPA_KEY = 'sb_publishable_hqupVgCRCxuMKb6UJXLglg_cEB-rifP';
 let supaClient = null; // 模組層持有，不放進 Alpine 反應式 state
+let supaAuthUnsubscribe = null;
 
 function quoteApp() {
   return {
@@ -215,19 +216,23 @@ function quoteApp() {
     cloudInit() {
       try {
         if (!window.supabase || !SUPA_URL) { this.cloud.authChecked = true; return; }
-        supaClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
-          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-        });
+        if (!supaClient) {
+          supaClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+          });
+        }
         this.cloud.ready = true;
         // 還原既有登入 + 監聽登入狀態變化（magic link 點回來時觸發）
         supaClient.auth.getSession().then(({ data }) => {
           this._applySession(data.session);
           this.cloud.authChecked = true;
         });
-        supaClient.auth.onAuthStateChange((_e, session) => {
+        supaAuthUnsubscribe?.unsubscribe?.();
+        const { data: authListener } = supaClient.auth.onAuthStateChange((_e, session) => {
           this._applySession(session);
           this.cloud.authChecked = true;
         });
+        supaAuthUnsubscribe = authListener?.subscription || null;
       } catch (e) {
         console.error('雲端初始化失敗', e);
         this.cloud.authChecked = true;
@@ -592,10 +597,11 @@ function quoteApp() {
     // 欄位寬度與顯示還原預設
     resetCols() {
       const def = {
-        floor: { show: true, w: 58 }, name: { show: true, w: 150 },
+        idx: { show: true, w: 42 }, floor: { show: true, w: 58 },
+        name: { show: true, w: 150 }, spec: { show: true, w: 120 },
         unit: { show: true, w: 52 }, qty: { show: true, w: 56 },
         price: { show: true, w: 78 }, subtotal: { show: true, w: 92 },
-        note: { show: true, w: 220 },
+        note: { show: true, w: 200 },
       };
       Object.keys(def).forEach(k => { this.cols[k].show = def[k].show; this.cols[k].w = def[k].w; });
       this.save();
