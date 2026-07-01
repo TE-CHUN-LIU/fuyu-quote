@@ -739,6 +739,21 @@ body.exporting .col-resizer { display: none !important; }
   }
   table.items th, table.items td { padding: 4px 6px; }
 
+  /* 手機：填寫欄位加高加大好按（單價、數量、項目等） */
+  table.items td input,
+  table.items td select,
+  table.items td textarea {
+    font-size: 16px;      /* 字大好讀，iOS 聚焦時不自動放大頁面 */
+    padding: 10px 8px;
+    min-height: 44px;     /* 加大點擊區，手指好按 */
+    line-height: 1.3;
+  }
+  table.items td input[type=number] { font-size: 16px; }
+  /* 單價/數量欄位稍加寬，容納放大的數字 */
+  table.items .col-price { width: 96px; }
+  table.items .col-qty { width: 72px; }
+  table.items { min-width: 760px; }
+
   /* 合計區 */
   .summary { padding: 12px 14px; }
   .summary-row { font-size: 13px; }
