@@ -244,6 +244,56 @@ body {
 .btn-accent { background: var(--accent); color: white; border-color: var(--accent); }
 .btn-danger { color: #c44; }
 
+/* ===== 輸出檔案下拉選單 ===== */
+.btn-menu { position: relative; display: inline-flex; }
+.btn-menu > .btn.is-open { background: #f0f0ed; }
+.btn-menu .caret { margin-left: 2px; font-size: 11px; }
+.btn-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 180px;
+  padding: 6px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.btn-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+  transition: background .12s;
+}
+.btn-menu-item:hover { background: #f0f0ed; }
+.btn-menu-item .ic { width: 17px; height: 17px; flex: 0 0 auto; }
+.btn-menu-sep { height: 1px; margin: 4px 6px; background: var(--border); }
+
+/* ===== 清空區（全頁最下面） ===== */
+.clear-zone {
+  margin: 12px auto 4px;
+  padding: 0 4px;
+  text-align: center;
+}
+.clear-zone .btn-danger {
+  border-color: #eecccc;
+  background: #fff;
+}
+.clear-zone .btn-danger:hover { background: #fdf2f2; }
+
 /* === Paper (報價單版面) === */
 .paper {
   background: var(--paper);
@@ -683,6 +733,10 @@ body.exporting .col-resizer { display: none !important; }
     font-size: 12px;
     text-align: center;
   }
+  .toolbar-actions .btn-menu { flex: 1 1 calc(50% - 3px); }
+  .toolbar-actions .btn-menu > .btn { width: 100%; }
+  .btn-menu-list { min-width: 200px; }
+  .clear-zone .btn-danger { width: 100%; padding: 12px; }
 
   /* Header：縮小 logo 與字級 */
   .header {
