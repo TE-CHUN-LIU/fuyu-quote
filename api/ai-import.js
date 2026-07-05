@@ -65,6 +65,25 @@ export default async function handler(req, res) {
     return res.status(501).json({ message: 'AI 匯入尚未啟用：請先在 Vercel 設定 OPENAI_API_KEY' });
   }
 
+  // [SECURITY 2026-07] 需登入才可使用（否則任何匿名者可用本站當代理狂燒 OpenAI 額度）。
+  {
+    const SUPA_URL = process.env.SUPABASE_URL || 'https://ulaumiqgrazbpdpykgsw.supabase.co';
+    const SUPA_ANON = process.env.SUPABASE_ANON_KEY || 'sb_publishable_hqupVgCRCxuMKb6UJXLglg_cEB-rifP';
+    const authz = req.headers.authorization || req.headers.Authorization || '';
+    const m = /^Bearer\s+(.+)$/i.exec(authz);
+    if (!m) return res.status(401).json({ message: '請先登入再使用 AI 匯入' });
+    try {
+      const ur = await fetch(`${SUPA_URL}/auth/v1/user`, {
+        headers: { Authorization: `Bearer ${m[1]}`, apikey: SUPA_ANON },
+      });
+      if (!ur.ok) return res.status(401).json({ message: '登入已失效，請重新登入' });
+      const u = await ur.json();
+      if (!u || !u.id) return res.status(401).json({ message: '登入已失效，請重新登入' });
+    } catch {
+      return res.status(503).json({ message: '驗證服務暫時無法使用，請稍後再試' });
+    }
+  }
+
   try {
     const body = await readJson(req);
     const fileName = String(body.fileName || 'quote-file');

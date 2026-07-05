@@ -1141,9 +1141,13 @@ function quoteApp() {
 
     async _aiImportFile(file) {
       const dataUrl = await this._fileToDataUrl(file);
+      // [SECURITY 2026-07] 帶上登入 token，後端需驗證才呼叫 OpenAI
+      let _tok = '';
+      try { const { data } = await supaClient.auth.getSession(); _tok = data?.session?.access_token || ''; } catch { /* noop */ }
+      if (!_tok) throw new Error('請先登入再使用 AI 匯入');
       const res = await fetch('/api/ai-import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_tok}` },
         body: JSON.stringify({
           fileName: file.name,
           mimeType: file.type || this._guessMimeType(file.name),

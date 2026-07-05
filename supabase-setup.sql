@@ -56,6 +56,7 @@ begin
 end; $$;
 
 -- 3. 只開放這些函式給匿名前端執行
-grant execute on function public.fuyu_list(text)                              to anon;
-grant execute on function public.fuyu_upsert(text, uuid, text, text, jsonb)   to anon;
-grant execute on function public.fuyu_delete(text, uuid)                      to anon;
+-- [SECURITY 2026-07] 舊共用密碼後門已撤，勿再授權 anon
+-- grant execute on function public.fuyu_list(text)                              to anon;
+-- grant execute on function public.fuyu_upsert(text, uuid, text, text, jsonb)   to anon;
+-- grant execute on function public.fuyu_delete(text, uuid)                      to anon;
