@@ -970,3 +970,13 @@ body.printing ::placeholder { color: transparent; }
   padding: 8px 10px; margin: 4px 0 8px;
   border: 1px solid #ddd; border-radius: 6px; font-size: 14px;
 }
+
+/* ===== 報價設定編輯面板（請款分期／加項／違約金／條款）====== */
+.qsettings { border:1px dashed #cbd5e1; border-radius:6px; padding:8px 10px; margin:8px 0; background:#f8fafc; }
+.qsettings .qs-head { font-size:12px; font-weight:700; color:#2e4a6b; margin-bottom:6px; }
+.qsettings .qs-row { display:flex; gap:6px; align-items:center; margin:4px 0; flex-wrap:wrap; }
+.qsettings input[type=text], .qsettings input[type=number], .qsettings input[type=date] { border:1px solid #cbd5e1; border-radius:4px; padding:4px 6px; font-size:12px; }
+.qsettings button { border:1px solid #cbd5e1; background:#fff; border-radius:4px; padding:3px 8px; font-size:12px; cursor:pointer; }
+.qsettings .qs-add { color:#2e4a6b; border-color:#2e4a6b; font-weight:600; margin-top:4px; }
+.qsettings .qs-del { color:#c0392b; border-color:#e2b3ad; }
+.qsettings .qs-hint { font-size:11px; color:#8a94a3; }

@@ -37,6 +37,16 @@ function quoteApp() {
       mode: 'percent', // percent 或 fixed
       value: 0,
     },
+    // 請款分期（可自由增減；金額依總價與百分比自動算，最後一期補足尾差）
+    payments: [
+      { label: '進場', percent: 30 },
+      { label: '工程進度', percent: 40 },
+      { label: '完工', percent: 30 },
+    ],
+    // 追加項目（加項）：名稱＋金額，直接加進總價
+    extras: [],
+    // 違約金條款（可選）：填完工期限＋每日罰款%，自動生條款並算每日金額
+    penalty: { enabled: false, date: '', percentPerDay: 1 },
     importState: {
       busy: false,
       lastSource: '',
@@ -100,7 +110,7 @@ function quoteApp() {
     floorOptions: FLOOR_OPTIONS,
     unitOptions: UNIT_OPTIONS,
     company: COMPANY_INFO,
-    terms: DEFAULT_TERMS,
+    terms: [...DEFAULT_TERMS],
     platform: PLATFORM_INFO,
 
     get categories() {
@@ -169,19 +179,44 @@ function quoteApp() {
       if (this.contractorMarkup.mode === 'fixed') return value;
       return Math.round(this.grandTotal * value / 100);
     },
+    get extrasTotal() {
+      return (this.extras || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    },
     get tax() {
-      return this.needInvoice ? Math.round(this.quoteGrandTotal * 0.05) : 0;
+      return this.needInvoice ? Math.round((this.quoteGrandTotal + this.extrasTotal) * 0.05) : 0;
     },
     get finalTotal() {
-      return this.quoteGrandTotal + this.tax;
+      return this.quoteGrandTotal + this.extrasTotal + this.tax;
     },
-    get payments() {
+    // 依請款分期設定計算各期金額；最後一期補足尾差，確保加總＝總價
+    get paymentRows() {
       const t = this.finalTotal;
-      return {
-        first: Math.round(t * 0.3),
-        second: Math.round(t * 0.4),
-        third: t - Math.round(t * 0.3) - Math.round(t * 0.4),
-      };
+      const rows = (this.payments && this.payments.length) ? this.payments : [{ label: '全額', percent: 100 }];
+      let acc = 0;
+      return rows.map((p, i) => {
+        let amt;
+        if (i === rows.length - 1) { amt = t - acc; }
+        else { amt = Math.round(t * (Number(p.percent) || 0) / 100); acc += amt; }
+        return { label: p.label || `請款${i + 1}`, percent: Number(p.percent) || 0, amount: amt };
+      });
+    },
+    // 違約金：每日罰款金額（總價 × 每日%）
+    get penaltyPerDay() {
+      if (!this.penalty || !this.penalty.enabled) return 0;
+      return Math.round(this.finalTotal * (Number(this.penalty.percentPerDay) || 0) / 100);
+    },
+    // 違約金自動條款文字
+    get penaltyText() {
+      if (!this.penalty || !this.penalty.enabled) return '';
+      const d = this.penalty.date ? this.penalty.date.replace(/-/g, '/') : '約定完工日';
+      const pct = Number(this.penalty.percentPerDay) || 0;
+      return `如未於 ${d} 前如期完工，自逾期之日起，每延遲一日按總款項 ${pct}%（約 $${this.formatMoney(this.penaltyPerDay)}／日）計罰，並自尾款中扣抵。`;
+    },
+    // 顯示用條款＝自訂條款（＋啟用時的違約金條款）
+    get displayTerms() {
+      const t = [...(this.terms || [])];
+      if (this.penalty && this.penalty.enabled) t.push(this.penaltyText);
+      return t;
     },
     get currentBank() {
       return this.company.banks[this.bankChoice];
@@ -197,6 +232,10 @@ function quoteApp() {
       this.$watch('bankChoice', () => this.save());
       this.$watch('needInvoice', () => this.save());
       this.$watch('contractorMarkup', () => this.save(), { deep: true });
+      this.$watch('payments', () => this.save(), { deep: true });
+      this.$watch('extras', () => this.save(), { deep: true });
+      this.$watch('penalty', () => this.save(), { deep: true });
+      this.$watch('terms', () => this.save(), { deep: true });
       this.$watch('groupMode', () => this.save());
       this.$watch('floorFilter', () => this.save());
       this.$watch('cols', () => this.save(), { deep: true });
@@ -355,6 +394,10 @@ function quoteApp() {
         bankChoice: this.bankChoice,
         needInvoice: this.needInvoice,
         contractorMarkup: this.contractorMarkup,
+        payments: this.payments,
+        extras: this.extras,
+        penalty: this.penalty,
+        terms: this.terms,
         groupMode: this.groupMode,
         floorFilter: this.floorFilter,
         cols: this.cols,
@@ -370,6 +413,10 @@ function quoteApp() {
       Object.assign(this.contractorMarkup, data.contractorMarkup || {});
       this.contractorMarkup.enabled = !!this.contractorMarkup.enabled;
       if (!['percent', 'fixed'].includes(this.contractorMarkup.mode)) this.contractorMarkup.mode = 'percent';
+      if (Array.isArray(data.payments) && data.payments.length) this.payments = data.payments;
+      if (Array.isArray(data.extras)) this.extras = data.extras;
+      if (data.penalty) Object.assign(this.penalty, data.penalty);
+      if (Array.isArray(data.terms)) this.terms = data.terms;
       this.groupMode = data.groupMode || 'category';
       this.floorFilter = data.floorFilter || '全部';
       if (data.cols) {
@@ -607,6 +654,14 @@ function quoteApp() {
       this.save();
     },
 
+    // 請款分期 / 加項 / 條款 的增刪
+    addPayment() { this.payments.push({ label: '', percent: 0 }); this.save(); },
+    removePayment(i) { this.payments.splice(i, 1); this.save(); },
+    addExtra() { this.extras.push({ label: '', amount: 0 }); this.save(); },
+    removeExtra(i) { this.extras.splice(i, 1); this.save(); },
+    addTerm() { this.terms.push(''); this.save(); },
+    removeTerm(i) { this.terms.splice(i, 1); this.save(); },
+
     save() {
       const data = {
         project: this.project,
@@ -615,6 +670,10 @@ function quoteApp() {
         bankChoice: this.bankChoice,
         needInvoice: this.needInvoice,
         contractorMarkup: this.contractorMarkup,
+        payments: this.payments,
+        extras: this.extras,
+        penalty: this.penalty,
+        terms: this.terms,
         groupMode: this.groupMode,
         floorFilter: this.floorFilter,
         cols: this.cols,
@@ -635,6 +694,10 @@ function quoteApp() {
         Object.assign(this.contractorMarkup, data.contractorMarkup || {});
         this.contractorMarkup.enabled = !!this.contractorMarkup.enabled;
         if (!['percent', 'fixed'].includes(this.contractorMarkup.mode)) this.contractorMarkup.mode = 'percent';
+        if (Array.isArray(data.payments) && data.payments.length) this.payments = data.payments;
+        if (Array.isArray(data.extras)) this.extras = data.extras;
+        if (data.penalty) Object.assign(this.penalty, data.penalty);
+        if (Array.isArray(data.terms)) this.terms = data.terms;
         this.groupMode = data.groupMode || 'category';
         this.floorFilter = data.floorFilter || '全部';
         if (data.cols) {
@@ -1318,7 +1381,9 @@ function quoteApp() {
       const infoRow = (l1, v1, l2, v2) =>
         `<tr><td style="padding:5px 8px;color:#555;width:80px;">${l1}</td><td style="padding:5px 8px;border-bottom:1px solid #eee;">${e(v1)}</td><td style="padding:5px 8px;color:#555;width:80px;">${l2 || ''}</td><td style="padding:5px 8px;border-bottom:1px solid #eee;">${e(v2 || '')}</td></tr>`;
       const taxRow = this.needInvoice ? `<div style="display:flex;justify-content:space-between;padding:7px 12px;border-top:1px solid #eee;"><span>營業稅 5%</span><span>$ ${m(this.tax)}</span></div>` : '';
-      const termsHtml = this.terms.map(t => `<li style="margin:3px 0;font-size:11px;color:#444;">${e(t)}</li>`).join('');
+      const termsHtml = this.displayTerms.map(t => `<li style="margin:3px 0;font-size:11px;color:#444;">${e(t)}</li>`).join('');
+      const extrasHtml = (this.extras || []).filter(x => x.label || Number(x.amount)).map(x => `<div style="display:flex;justify-content:space-between;padding:7px 12px;border-top:1px solid #eee;"><span>＋ ${e(x.label || '追加項目')}</span><span>$ ${m(Number(x.amount) || 0)}</span></div>`).join('');
+      const payCells = this.paymentRows.map(p => `<div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">${e(p.label)}${p.percent ? '　' + p.percent + '%' : ''}</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(p.amount)}</div></div>`).join('');
       const bank = this.currentBank;
 
       const node = document.createElement('div');
@@ -1345,13 +1410,12 @@ function quoteApp() {
         <table style="width:100%;border-collapse:collapse;margin-top:6px;"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>
         <div data-block style="margin-top:12px;margin-left:auto;width:344px;font-size:13px;border:1px solid #d6dde6;border-radius:2px;overflow:hidden;">
           <div style="display:flex;justify-content:space-between;padding:7px 12px;"><span>工程總額（未稅）</span><span>$ ${m(this.quoteGrandTotal)}</span></div>
+          ${extrasHtml}
           ${taxRow}
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#2e4a6b;color:#fff;"><span style="font-size:14px;font-weight:700;">${this.needInvoice ? '總計（含稅）' : '總計（未含稅）'}</span><span style="font-size:19px;font-weight:700;color:#ffd24d;">NT$ ${m(this.finalTotal)} 元整</span></div>
         </div>
         <div data-block style="display:flex;gap:10px;margin-top:12px;text-align:center;">
-          <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款一　進場 30%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.first)}</div></div>
-          <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款二　進度 40%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.second)}</div></div>
-          <div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">請款三　完工 30%</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(this.payments.third)}</div></div>
+          ${payCells}
         </div>
         <div data-block style="margin-top:16px;"><strong style="font-size:12px;">備註說明：</strong><ol style="margin:6px 0;padding-left:20px;">${termsHtml}</ol></div>
         <div data-block data-sig style="display:flex;gap:16px;margin-top:14px;">
@@ -1566,19 +1630,18 @@ function quoteApp() {
       r.push([]);
       // 合計
       r.push(amtRow('工程總額（未稅）', this.quoteGrandTotal));
+      (this.extras || []).filter(x => x.label || Number(x.amount)).forEach(x => r.push(amtRow(`追加：${x.label || '追加項目'}`, Number(x.amount) || 0)));
       if (this.needInvoice) {
         r.push(amtRow('營業稅 5%', this.tax));
       }
       r.push(amtRow(this.needInvoice ? '總計（含稅）' : '總計（未含稅）', this.finalTotal));
       r.push([]);
-      // 三期付款
-      r.push(amtRow('請款一　進場時收 30%', this.payments.first));
-      r.push(amtRow('請款二　工程進度 40%', this.payments.second));
-      r.push(amtRow('請款三　完工後 30%', this.payments.third));
+      // 請款分期
+      this.paymentRows.forEach(p => r.push(amtRow(`${p.label}${p.percent ? '　' + p.percent + '%' : ''}`, p.amount)));
       r.push([]);
       // 備註條款
       r.push(['備註說明：']);
-      this.terms.forEach((t, i) => r.push([`${i + 1}.`, t]));
+      this.displayTerms.forEach((t, i) => r.push([`${i + 1}.`, t]));
       r.push([]);
       // 公司資訊
       r.push([`${this.company.name}　統編 ${this.company.taxId}`]);

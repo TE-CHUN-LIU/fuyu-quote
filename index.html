@@ -391,6 +391,25 @@
         <span>工程總額（未稅）</span>
         <span x-text="`$ ${formatMoney(quoteGrandTotal)}`"></span>
       </div>
+      <!-- 加項（追加項目）顯示 -->
+      <template x-for="(ex, i) in extras" :key="i">
+        <div class="summary-row" x-show="ex.label || ex.amount">
+          <span x-text="`＋ ${ex.label || '追加項目'}`"></span>
+          <span x-text="`$ ${formatMoney(ex.amount)}`"></span>
+        </div>
+      </template>
+      <!-- 加項編輯（不印進客戶報價單）-->
+      <div class="qsettings no-print">
+        <div class="qs-head">追加項目（加項）<span class="qs-hint">　填名稱＋金額，直接加進總價</span></div>
+        <template x-for="(ex, i) in extras" :key="i">
+          <div class="qs-row">
+            <input type="text" placeholder="項目名稱（例：追加系統櫃）" x-model="ex.label" style="flex:1;min-width:160px;">
+            <input type="number" placeholder="金額" x-model.number="ex.amount" style="width:110px;">
+            <button type="button" class="qs-del" @click="removeExtra(i)">刪</button>
+          </div>
+        </template>
+        <button type="button" class="qs-add" @click="addExtra()">＋ 新增加項</button>
+      </div>
       <div class="summary-row no-print">
         <label style="display:flex;align-items:center;gap:6px;">
           <input type="checkbox" x-model="needInvoice"> 需開立發票（外加 5% 營業稅）
@@ -406,20 +425,27 @@
         <span x-text="`$ ${formatMoney(finalTotal)}`"></span>
       </div>
 
-      <!-- 三期付款 -->
+      <!-- 請款分期（可自由增減）-->
       <div class="payment-schedule">
-        <div class="payment-cell">
-          <div class="label">請款一　進場時收 30%</div>
-          <div class="amount" x-text="`$ ${formatMoney(payments.first)}`"></div>
-        </div>
-        <div class="payment-cell">
-          <div class="label">請款二　工程進度 40%</div>
-          <div class="amount" x-text="`$ ${formatMoney(payments.second)}`"></div>
-        </div>
-        <div class="payment-cell">
-          <div class="label">請款三　完工後 30%</div>
-          <div class="amount" x-text="`$ ${formatMoney(payments.third)}`"></div>
-        </div>
+        <template x-for="(p, i) in paymentRows" :key="i">
+          <div class="payment-cell">
+            <div class="label" x-text="p.label + (p.percent ? '　' + p.percent + '%' : '')"></div>
+            <div class="amount" x-text="`$ ${formatMoney(p.amount)}`"></div>
+          </div>
+        </template>
+      </div>
+      <!-- 請款分期編輯（不印進客戶報價單）-->
+      <div class="qsettings no-print">
+        <div class="qs-head">請款分期設定<span class="qs-hint">　名稱＋百分比；金額自動算，最後一期補足尾差</span></div>
+        <template x-for="(p, i) in payments" :key="i">
+          <div class="qs-row">
+            <input type="text" placeholder="名稱（例：進場）" x-model="p.label" style="flex:1;min-width:120px;">
+            <input type="number" placeholder="%" x-model.number="p.percent" style="width:70px;">
+            <span class="qs-hint">%</span>
+            <button type="button" class="qs-del" @click="removePayment(i)">刪</button>
+          </div>
+        </template>
+        <button type="button" class="qs-add" @click="addPayment()">＋ 新增一期</button>
       </div>
     </div>
 
@@ -428,10 +454,38 @@
       <div class="terms">
         <strong>備註說明：</strong>
         <ol>
-          <template x-for="(term, idx) in terms" :key="idx">
+          <template x-for="(term, idx) in displayTerms" :key="idx">
             <li x-text="term"></li>
           </template>
         </ol>
+
+        <!-- 違約金條款設定（不印）-->
+        <div class="qsettings no-print">
+          <div class="qs-head">違約金條款（罰款）</div>
+          <div class="qs-row">
+            <label style="display:flex;align-items:center;gap:6px;">
+              <input type="checkbox" x-model="penalty.enabled"> 啟用違約金條款
+            </label>
+          </div>
+          <div class="qs-row" x-show="penalty.enabled">
+            完工期限 <input type="date" x-model="penalty.date">
+            每延遲一天扣 <input type="number" min="0" step="0.5" x-model.number="penalty.percentPerDay" style="width:64px;"> %
+            <span class="qs-hint" x-show="penalty.percentPerDay" x-text="`≈ 每天 $ ${formatMoney(penaltyPerDay)}`"></span>
+          </div>
+          <div class="qs-row qs-hint" x-show="penalty.enabled" x-text="penaltyText"></div>
+        </div>
+
+        <!-- 備註條款編輯（不印）-->
+        <div class="qsettings no-print">
+          <div class="qs-head">備註條款編輯<span class="qs-hint">　可改字／刪除／新增任何一條</span></div>
+          <template x-for="(term, idx) in terms" :key="idx">
+            <div class="qs-row">
+              <input type="text" x-model="terms[idx]" style="flex:1;min-width:240px;">
+              <button type="button" class="qs-del" @click="removeTerm(idx)">刪</button>
+            </div>
+          </template>
+          <button type="button" class="qs-add" @click="addTerm()">＋ 新增一條</button>
+        </div>
       </div>
 
       <!-- 客戶與公司簽章區 -->
