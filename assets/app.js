@@ -381,6 +381,20 @@ function quoteApp() {
         const { data: adminRow } = await supaClient.rpc('fuyu_is_platform_admin');
         this.cloud.isAdmin = !!adminRow;
         this.cloud.role = this.cloud.isAdmin ? 'admin' : 'owner';
+        // 多租戶：載入本公司抬頭＋訂閱狀態；沒設定就沿用富寓預設
+        const { data: org } = await supaClient.rpc('fuyu_my_org');
+        if (org) {
+          this.cloud.orgName = org.name || '';
+          this.cloud.subStatus = org.sub_status || 'active';
+          this.cloud.subEnd = org.sub_end || null;
+          this.cloud.orgActive = org.active !== false;
+          if (org.company_info && org.company_info.name) {
+            this.company = {
+              ...COMPANY_INFO, ...org.company_info,
+              banks: { ...COMPANY_INFO.banks, ...(org.company_info.banks || {}) },
+            };
+          }
+        }
       } catch (e) {
         console.error('讀取公司資料失敗', e);
       }
