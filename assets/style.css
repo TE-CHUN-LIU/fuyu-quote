@@ -626,6 +626,17 @@ table.items .total-cell {
 .terms ol { margin: 0; padding-left: 20px; }
 .terms li { margin-bottom: 4px; }
 
+.warranty { margin-top: 12px; }
+.warranty > strong { display: block; margin-bottom: 6px; }
+.warranty-cols { display: flex; gap: 12px; border: 1px solid #d6dde6; border-radius: 4px; overflow: hidden; background: #fff; }
+.warranty-col { flex: 1; padding: 8px 12px; }
+.warranty-col + .warranty-col { border-left: 1px solid #eee; }
+.warranty-head { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.warranty-head.warranty-inc { color: #2e7d4a; }
+.warranty-head.warranty-exc { color: #b23a3a; }
+.warranty-col ul { margin: 0; padding-left: 16px; }
+.warranty-col li { margin-bottom: 2px; }
+
 .signature-area {
   margin-top: 24px;
   display: grid;
@@ -880,6 +891,8 @@ body.exporting .col-resizer { display: none !important; }
   .summary { padding: 8px 12px; margin: 12px 0; background: #fff8e0; }
   .payment-cell { padding: 6px; }
   .terms { font-size: 9.5px; padding: 8px; }
+  .warranty { font-size: 9.5px; }
+  .warranty-col { padding: 6px 8px; }
   .info-grid { gap: 4px 16px; margin-bottom: 12px; }
   .info-row { padding: 2px 0; }
   .signature-area { margin-top: 16px; gap: 16px; }
@@ -925,6 +938,8 @@ body.printing .section-title { font-size: 12px; padding: 4px 8px; margin: 12px 0
 body.printing .summary { padding: 8px 12px; margin: 12px 0; background: #fff8e0; }
 body.printing .payment-cell { padding: 6px; }
 body.printing .terms { font-size: 9.5px; padding: 8px; }
+body.printing .warranty { font-size: 9.5px; }
+body.printing .warranty-col { padding: 6px 8px; }
 body.printing .info-grid { gap: 4px 16px; margin-bottom: 12px; }
 body.printing .info-row { padding: 2px 0; }
 body.printing .signature-area { margin-top: 16px; gap: 16px; }
@@ -980,3 +995,39 @@ body.printing ::placeholder { color: transparent; }
 .qsettings .qs-add { color:#2e4a6b; border-color:#2e4a6b; font-weight:600; margin-top:4px; }
 .qsettings .qs-del { color:#c0392b; border-color:#e2b3ad; }
 .qsettings .qs-hint { font-size:11px; color:#8a94a3; }
+
+/* ===== 平台訂閱管理中控台 ===== */
+.admin-overlay { position:fixed; inset:0; background:#f4f6f9; z-index:2000; overflow:auto; }
+.admin-panel { max-width:1100px; margin:0 auto; padding:20px 24px 60px; }
+.admin-head { display:flex; align-items:center; gap:12px; padding:8px 0 14px; border-bottom:2px solid #2e4a6b; position:sticky; top:0; background:#f4f6f9; z-index:2; }
+.admin-head strong { font-size:18px; color:#2e4a6b; }
+.admin-count { font-size:13px; color:#888; }
+.admin-msg { margin:12px 0; padding:10px 12px; background:#eef6ff; border:1px solid #cfe2f7; border-radius:6px; font-size:14px; color:#25507d; }
+.admin-card { margin:14px 0; padding:14px 16px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; }
+.admin-card-title { font-weight:700; color:#2e4a6b; margin-bottom:10px; }
+.admin-newco { display:flex; gap:8px; flex-wrap:wrap; }
+.admin-newco input { flex:1; min-width:150px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; }
+.admin-hint { margin-top:8px; font-size:12px; color:#8a94a3; }
+.admin-search { width:100%; margin:12px 0; padding:9px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; box-sizing:border-box; }
+.admin-loading { color:#c80; font-size:13px; margin:8px 0; }
+.admin-table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; font-size:13px; }
+.admin-table thead th { background:#2e4a6b; color:#fff; padding:9px 10px; text-align:left; font-weight:600; }
+.admin-table td { padding:9px 10px; border-top:1px solid #eef0f3; vertical-align:middle; }
+.admin-table tbody:hover td { background:#f8fafc; }
+.admin-table .mono { font-family:ui-monospace,monospace; font-size:12px; color:#555; }
+.admin-table .row-off td { opacity:.5; }
+.sub-badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:12px; font-weight:600; }
+.sub-active { background:#e3f6e8; color:#1f8a3b; } .sub-trialing { background:#e7f0ff; color:#2b6cb0; }
+.sub-past_due { background:#fff2d9; color:#b7791f; } .sub-canceled { background:#f1f1f1; color:#999; } .sub-none { background:#f1f1f1; color:#999; }
+.btn-sm { padding:4px 10px; font-size:12px; }
+.btn-danger { color:#c0392b; border-color:#e2b3ad; }
+.admin-edit-cell { background:#f8fafc; padding:14px 16px !important; }
+.admin-edit-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px 12px; }
+.admin-edit-grid label { display:flex; flex-direction:column; font-size:12px; color:#556; gap:3px; }
+.admin-edit-grid label.col2 { grid-column:span 2; }
+.admin-edit-grid input { padding:6px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:13px; }
+.admin-bank-title { margin:12px 0 6px; font-weight:600; color:#2e4a6b; font-size:13px; }
+.admin-sub-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0 6px; padding-top:12px; border-top:1px dashed #cbd5e1; font-size:13px; }
+.admin-sub-row select, .admin-sub-row input { padding:6px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:13px; }
+.admin-edit-actions { display:flex; gap:8px; margin-top:12px; }
+@media (max-width:700px){ .admin-edit-grid{ grid-template-columns:1fr; } .admin-edit-grid label.col2{ grid-column:span 1; } }

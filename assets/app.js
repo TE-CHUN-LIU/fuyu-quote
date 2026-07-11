@@ -74,6 +74,12 @@ function quoteApp() {
       loginErr: '',
       loginBusy: false,
     },
+    // 平台訂閱管理中控台（只有平台超管用）
+    admin: {
+      show: false, loading: false, msg: '', search: '',
+      list: [], editingId: null,
+      nc: { email: '', pass: '77889456', name: '' }, // 新增公司表單
+    },
     groupMode: 'category', // 'category' 依工程分類 / 'floor' 依樓層分類
     floorFilter: '全部',    // '全部' 或某一樓層（只篩選檢視，不影響總計）
     addForm: {
@@ -111,6 +117,7 @@ function quoteApp() {
     unitOptions: UNIT_OPTIONS,
     company: COMPANY_INFO,
     terms: [...DEFAULT_TERMS],
+    warranty: { included: [...DEFAULT_WARRANTY.included], excluded: [...DEFAULT_WARRANTY.excluded] },
     platform: PLATFORM_INFO,
 
     get categories() {
@@ -236,6 +243,7 @@ function quoteApp() {
       this.$watch('extras', () => this.save(), { deep: true });
       this.$watch('penalty', () => this.save(), { deep: true });
       this.$watch('terms', () => this.save(), { deep: true });
+      this.$watch('warranty', () => this.save(), { deep: true });
       this.$watch('groupMode', () => this.save());
       this.$watch('floorFilter', () => this.save());
       this.$watch('cols', () => this.save(), { deep: true });
@@ -400,6 +408,84 @@ function quoteApp() {
       }
     },
 
+    // === 平台訂閱管理中控台（僅平台超管）===
+    get adminFiltered() {
+      const q = (this.admin.search || '').trim().toLowerCase();
+      if (!q) return this.admin.list;
+      return this.admin.list.filter(o =>
+        (o.name || '').toLowerCase().includes(q) ||
+        (o.company_name || '').toLowerCase().includes(q) ||
+        (o.email || '').toLowerCase().includes(q) ||
+        String(o.tax_id || '').includes(q));
+    },
+    subLabel(s) {
+      return { active: '使用中', trialing: '試用中', past_due: '逾期', canceled: '已停用', incomplete: '未完成' }[s] || (s || '—');
+    },
+    async openAdmin() {
+      if (!this.cloud.isAdmin) { alert('僅平台超管可用'); return; }
+      this.admin.show = true;
+      await this.adminLoad();
+    },
+    async adminLoad() {
+      this.admin.loading = true; this.admin.msg = '';
+      try {
+        const { data, error } = await supaClient.rpc('fuyu_admin_list_orgs');
+        if (error) throw error;
+        this.admin.list = data || [];
+      } catch (e) { this.admin.msg = '載入失敗：' + (e.message || e); }
+      finally { this.admin.loading = false; }
+    },
+    async adminCreate() {
+      const nc = this.admin.nc;
+      if (!nc.email || !nc.pass || !nc.name) { alert('請填 email、密碼、公司名稱'); return; }
+      this.admin.loading = true; this.admin.msg = '';
+      try {
+        const { error } = await supaClient.rpc('fuyu_admin_create_company', {
+          p_email: nc.email.trim(), p_password: nc.pass, p_name: nc.name.trim(),
+          p_company_info: { name: nc.name.trim() },
+        });
+        if (error) throw error;
+        this.admin.msg = '✅ 已建立「' + nc.name + '」，帳號：' + nc.email + '（密碼 ' + nc.pass + '）';
+        this.admin.nc = { email: '', pass: '77889456', name: '' };
+        await this.adminLoad();
+      } catch (e) {
+        this.admin.msg = String(e.message || e).includes('email_exists') ? '❌ 這個 email 已被使用' : ('❌ 建立失敗：' + (e.message || e));
+      } finally { this.admin.loading = false; }
+    },
+    async adminSetSub(o, status) {
+      try {
+        const { error } = await supaClient.rpc('fuyu_admin_set_subscription', {
+          p_org: o.org_id, p_status: status, p_plan: o.plan || 'free',
+          p_end: o._end ? o._end : (o.period_end || null),
+        });
+        if (error) throw error;
+        await this.adminLoad();
+      } catch (e) { alert('更新訂閱失敗：' + (e.message || e)); }
+    },
+    async adminSaveSub(o) { await this.adminSetSub(o, o.sub_status || 'active'); this.admin.msg = '✅ 已更新訂閱'; },
+    adminEdit(o) {
+      if (this.admin.editingId === o.org_id) { this.admin.editingId = null; return; }
+      if (!o.company_info) o.company_info = {};
+      const c = o.company_info;
+      if (!c.banks) c.banks = {};
+      if (!c.banks.cathay) c.banks.cathay = {};
+      if (!c.banks.yuanta) c.banks.yuanta = {};
+      o._end = o.period_end ? String(o.period_end).slice(0, 10) : '';
+      this.admin.editingId = o.org_id;
+    },
+    async adminSaveOrg(o) {
+      try {
+        const { error } = await supaClient.rpc('fuyu_admin_update_org', {
+          p_org: o.org_id, p_name: (o.company_info && o.company_info.name) || o.name || '',
+          p_company_info: o.company_info || {},
+        });
+        if (error) throw error;
+        this.admin.editingId = null;
+        this.admin.msg = '✅ 已儲存抬頭';
+        await this.adminLoad();
+      } catch (e) { alert('儲存抬頭失敗：' + (e.message || e)); }
+    },
+
     _collectData() {
       return {
         project: this.project,
@@ -412,6 +498,7 @@ function quoteApp() {
         extras: this.extras,
         penalty: this.penalty,
         terms: this.terms,
+        warranty: this.warranty,
         groupMode: this.groupMode,
         floorFilter: this.floorFilter,
         cols: this.cols,
@@ -431,6 +518,10 @@ function quoteApp() {
       if (Array.isArray(data.extras)) this.extras = data.extras;
       if (data.penalty) Object.assign(this.penalty, data.penalty);
       if (Array.isArray(data.terms)) this.terms = data.terms;
+      if (data.warranty) {
+        if (Array.isArray(data.warranty.included)) this.warranty.included = data.warranty.included;
+        if (Array.isArray(data.warranty.excluded)) this.warranty.excluded = data.warranty.excluded;
+      }
       this.groupMode = data.groupMode || 'category';
       this.floorFilter = data.floorFilter || '全部';
       if (data.cols) {
@@ -675,6 +766,10 @@ function quoteApp() {
     removeExtra(i) { this.extras.splice(i, 1); this.save(); },
     addTerm() { this.terms.push(''); this.save(); },
     removeTerm(i) { this.terms.splice(i, 1); this.save(); },
+    addWarrantyInc() { this.warranty.included.push(''); this.save(); },
+    removeWarrantyInc(i) { this.warranty.included.splice(i, 1); this.save(); },
+    addWarrantyExc() { this.warranty.excluded.push(''); this.save(); },
+    removeWarrantyExc(i) { this.warranty.excluded.splice(i, 1); this.save(); },
 
     save() {
       const data = {
@@ -688,6 +783,7 @@ function quoteApp() {
         extras: this.extras,
         penalty: this.penalty,
         terms: this.terms,
+        warranty: this.warranty,
         groupMode: this.groupMode,
         floorFilter: this.floorFilter,
         cols: this.cols,
@@ -712,6 +808,10 @@ function quoteApp() {
         if (Array.isArray(data.extras)) this.extras = data.extras;
         if (data.penalty) Object.assign(this.penalty, data.penalty);
         if (Array.isArray(data.terms)) this.terms = data.terms;
+        if (data.warranty) {
+          if (Array.isArray(data.warranty.included)) this.warranty.included = data.warranty.included;
+          if (Array.isArray(data.warranty.excluded)) this.warranty.excluded = data.warranty.excluded;
+        }
         this.groupMode = data.groupMode || 'category';
         this.floorFilter = data.floorFilter || '全部';
         if (data.cols) {
@@ -1396,6 +1496,23 @@ function quoteApp() {
         `<tr><td style="padding:5px 8px;color:#555;width:80px;">${l1}</td><td style="padding:5px 8px;border-bottom:1px solid #eee;">${e(v1)}</td><td style="padding:5px 8px;color:#555;width:80px;">${l2 || ''}</td><td style="padding:5px 8px;border-bottom:1px solid #eee;">${e(v2 || '')}</td></tr>`;
       const taxRow = this.needInvoice ? `<div style="display:flex;justify-content:space-between;padding:7px 12px;border-top:1px solid #eee;"><span>營業稅 5%</span><span>$ ${m(this.tax)}</span></div>` : '';
       const termsHtml = this.displayTerms.map(t => `<li style="margin:3px 0;font-size:11px;color:#444;">${e(t)}</li>`).join('');
+      const wInc = (this.warranty.included || []).filter(x => (x || '').trim());
+      const wExc = (this.warranty.excluded || []).filter(x => (x || '').trim());
+      const wList = (arr, color) => arr.map(x => `<li style="margin:2px 0;font-size:11px;color:${color};">${e(x)}</li>`).join('');
+      const warrantyHtml = (wInc.length || wExc.length) ? `
+        <div data-block style="margin-top:14px;border:1px solid #d6dde6;border-radius:2px;overflow:hidden;">
+          <div style="background:#eef3f8;color:#2e4a6b;font-weight:700;font-size:12px;padding:6px 12px;border-bottom:1px solid #d6dde6;">保固說明</div>
+          <div style="display:flex;">
+            <div style="flex:1;padding:8px 12px;">
+              <div style="font-size:11px;font-weight:700;color:#2e7d4a;margin-bottom:3px;">保固內容</div>
+              <ul style="margin:0;padding-left:16px;">${wList(wInc, '#2e7d4a')}</ul>
+            </div>
+            <div style="flex:1;padding:8px 12px;border-left:1px solid #eee;">
+              <div style="font-size:11px;font-weight:700;color:#b23a3a;margin-bottom:3px;">不保固內容</div>
+              <ul style="margin:0;padding-left:16px;">${wList(wExc, '#b23a3a')}</ul>
+            </div>
+          </div>
+        </div>` : '';
       const extrasHtml = (this.extras || []).filter(x => x.label || Number(x.amount)).map(x => `<div style="display:flex;justify-content:space-between;padding:7px 12px;border-top:1px solid #eee;"><span>＋ ${e(x.label || '追加項目')}</span><span>$ ${m(Number(x.amount) || 0)}</span></div>`).join('');
       const payCells = this.paymentRows.map(p => `<div style="flex:1;border:1px solid #d6dde6;border-top:3px solid #2e4a6b;padding:9px 8px;font-size:12px;"><div style="color:#2e4a6b;font-weight:600;">${e(p.label)}${p.percent ? '　' + p.percent + '%' : ''}</div><div style="font-weight:700;font-size:15px;margin-top:5px;">$ ${m(p.amount)}</div></div>`).join('');
       const bank = this.currentBank;
@@ -1432,6 +1549,7 @@ function quoteApp() {
           ${payCells}
         </div>
         <div data-block style="margin-top:16px;"><strong style="font-size:12px;">備註說明：</strong><ol style="margin:6px 0;padding-left:20px;">${termsHtml}</ol></div>
+        ${warrantyHtml}
         <div data-block data-sig style="display:flex;gap:16px;margin-top:14px;">
           <div style="flex:1;border:1px solid #d6dde6;font-size:12px;line-height:1.9;">
             <div style="font-weight:700;background:#eef3f8;color:#2e4a6b;padding:7px 12px;border-bottom:1px solid #d6dde6;">客戶確認章戳</div>
@@ -1657,6 +1775,17 @@ function quoteApp() {
       r.push(['備註說明：']);
       this.displayTerms.forEach((t, i) => r.push([`${i + 1}.`, t]));
       r.push([]);
+      // 保固說明
+      const wInc = (this.warranty.included || []).filter(x => (x || '').trim());
+      const wExc = (this.warranty.excluded || []).filter(x => (x || '').trim());
+      if (wInc.length || wExc.length) {
+        r.push(['保固說明：']);
+        r.push(['保固內容']);
+        wInc.forEach(x => r.push(['', x]));
+        r.push(['不保固內容']);
+        wExc.forEach(x => r.push(['', x]));
+        r.push([]);
+      }
       // 公司資訊
       r.push([`${this.company.name}　統編 ${this.company.taxId}`]);
       r.push([`現場聯絡：${this.company.contact}　${this.company.phone}`]);
