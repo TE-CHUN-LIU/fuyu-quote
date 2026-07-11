@@ -843,7 +843,7 @@ function quoteApp() {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const name = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}.json`;
+      const name = `${(this.company.name||'報價單')}_${this.customer.name || '未命名'}_${this.project.date}.json`;
       a.href = url;
       a.download = name;
       a.click();
@@ -1401,7 +1401,7 @@ function quoteApp() {
 
     printQuote() {
       const oldTitle = document.title;
-      const name = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}`;
+      const name = `${(this.company.name||'報價單')}_${this.customer.name || '未命名'}_${this.project.date}`;
       document.title = name;
       window.print();
       setTimeout(() => { document.title = oldTitle; }, 1000);
@@ -1426,7 +1426,7 @@ function quoteApp() {
       ];
       // 合併儲存格（標題、付款區）會在後面用 merges 追加
       XLSX.utils.book_append_sheet(wb, ws, '報價單');
-      const filename = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}.xlsx`;
+      const filename = `${(this.company.name||'報價單')}_${this.customer.name || '未命名'}_${this.project.date}.xlsx`;
       XLSX.writeFile(wb, filename);
     },
 
@@ -1443,14 +1443,14 @@ function quoteApp() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}.csv`;
+      a.download = `${(this.company.name||'報價單')}_${this.customer.name || '未命名'}_${this.project.date}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     },
 
     // === PDF / PNG 匯出 ===
     _exportName() {
-      return `富寓報價單_${this.customer.name || '未命名'}_${this.project.date}`;
+      return `${(this.company.name||'報價單')}_${this.customer.name || '未命名'}_${this.project.date}`;
     },
 
     _esc(s) {
