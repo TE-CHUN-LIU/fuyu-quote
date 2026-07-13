@@ -263,3 +263,79 @@ create policy aijob_admin_all  on public.ai_import_jobs
 --  1. index.html / app.js 已用 Supabase Auth 登入，雲端讀寫改打 quotes 表（RLS 依公司隔離）。
 --  2. 待辦：/api/ai-import 改成驗 JWT → org_subscription_active() gate，再記一筆 ai_import_jobs。
 --  3. 待辦：把舊 fuyu_quotes（共用密碼版）的資料一次性搬進 quotes（需指定歸屬公司）。
+
+
+-- ──────────────────────────────────────────────
+-- 7. 平台訂閱管理中控台 RPC（只有平台超管可呼叫，全部先驗 is_platform_admin()）
+--    ⚠️ 密碼加密用 pgcrypto 的 crypt()/gen_salt()，此擴充裝在 extensions schema。
+--       函式 search_path 只有 public，故務必用 extensions.crypt / extensions.gen_salt
+--       全名呼叫，否則會噴「function gen_salt(unknown) does not exist」建帳號失敗。
+-- ──────────────────────────────────────────────
+
+-- 列出所有公司（含抬頭、負責人 email、訂閱狀態、報價數）供中控台清單用
+create or replace function public.fuyu_admin_list_orgs()
+ returns jsonb language plpgsql security definer set search_path to 'public'
+as $$
+begin
+  if not is_platform_admin() then raise exception 'forbidden'; end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'org_id', o.id, 'name', o.name,
+      'company_name', o.company_info->>'name',
+      'tax_id', o.company_info->>'taxId',
+      'company_info', coalesce(o.company_info, '{}'::jsonb),
+      'email', (select u.email from organization_members m join auth.users u on u.id=m.user_id where m.organization_id=o.id order by (m.role='owner') desc limit 1),
+      'active', o.active, 'sub_status', s.status, 'plan', s.plan, 'period_end', s.current_period_end,
+      'quotes', (select count(*) from quotes q where q.organization_id=o.id)
+    ) order by o.name)
+    from organizations o left join subscriptions s on s.organization_id=o.id
+  ), '[]'::jsonb);
+end $$;
+
+-- 更新公司名 / 抬頭
+create or replace function public.fuyu_admin_update_org(p_org uuid, p_name text, p_company_info jsonb)
+ returns void language plpgsql security definer set search_path to 'public'
+as $$
+begin
+  if not is_platform_admin() then raise exception 'forbidden'; end if;
+  update organizations set name = coalesce(nullif(p_name,''), name),
+    company_info = coalesce(p_company_info, company_info) where id = p_org;
+end $$;
+
+-- 設定訂閱狀態 / 方案 / 到期日（同步 organizations.active）
+create or replace function public.fuyu_admin_set_subscription(p_org uuid, p_status text, p_plan text, p_end timestamptz)
+ returns void language plpgsql security definer set search_path to 'public'
+as $$
+begin
+  if not is_platform_admin() then raise exception 'forbidden'; end if;
+  insert into subscriptions(organization_id, status, plan, current_period_end, updated_at)
+    values (p_org, p_status::sub_status, coalesce(nullif(p_plan,''),'free'), p_end, now())
+  on conflict (organization_id) do update
+    set status=excluded.status, plan=excluded.plan, current_period_end=excluded.current_period_end, updated_at=now();
+  update organizations set active = (p_status in ('active','trialing')) where id = p_org;
+end $$;
+
+-- 新增訂閱公司：一次建 auth 帳號 + org + owner 成員 + 訂閱
+--   ⚠️ auth.identities.email 為 generated column 不可手動 insert；密碼用 extensions.crypt bcrypt。
+create or replace function public.fuyu_admin_create_company(p_email text, p_password text, p_name text, p_company_info jsonb)
+ returns jsonb language plpgsql security definer set search_path to 'public'
+as $$
+declare new_uid uuid; new_org uuid;
+begin
+  if not is_platform_admin() then raise exception 'forbidden'; end if;
+  if exists(select 1 from auth.users where email = p_email) then raise exception 'email_exists'; end if;
+  new_uid := gen_random_uuid();
+  insert into auth.users(instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change)
+    values ('00000000-0000-0000-0000-000000000000', new_uid, 'authenticated','authenticated', p_email,
+      extensions.crypt(p_password, extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}',
+      jsonb_build_object('full_name', p_name), now(), now(), '','','','');
+  insert into auth.identities(id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (gen_random_uuid(), new_uid, new_uid::text, jsonb_build_object('sub', new_uid::text, 'email', p_email), 'email', now(), now(), now());
+  insert into organizations(name, slug, company_info)
+    values (coalesce(nullif(p_name,''),'新公司'), 'org-'||replace(new_uid::text,'-',''), p_company_info) returning id into new_org;
+  insert into organization_members(organization_id, user_id, role) values (new_org, new_uid, 'owner');
+  insert into subscriptions(organization_id, status, plan, current_period_end) values (new_org, 'active', 'free', null);
+  return jsonb_build_object('org_id', new_org, 'user_id', new_uid);
+end $$;
