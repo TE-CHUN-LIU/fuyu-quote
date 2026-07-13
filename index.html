@@ -116,14 +116,14 @@
         <template x-for="o in adminFiltered" :key="o.org_id">
           <tbody>
             <tr :class="{ 'row-off': !o.active }">
-              <td x-text="o.company_name || o.name"></td>
-              <td class="mono" x-text="o.email"></td>
-              <td x-text="o.tax_id || '—'"></td>
-              <td x-text="o.plan || '—'"></td>
-              <td><span class="sub-badge" :class="'sub-'+(o.sub_status||'none')" x-text="subLabel(o.sub_status)"></span></td>
-              <td x-text="o.period_end ? String(o.period_end).slice(0,10) : '—'"></td>
-              <td x-text="o.quotes"></td>
-              <td style="text-align:right;white-space:nowrap;">
+              <td class="admin-cell-name" data-label="公司" x-text="o.company_name || o.name"></td>
+              <td class="mono" data-label="登入帳號" x-text="o.email"></td>
+              <td data-label="統編" x-text="o.tax_id || '—'"></td>
+              <td data-label="方案" x-text="o.plan || '—'"></td>
+              <td data-label="訂閱"><span class="sub-badge" :class="'sub-'+(o.sub_status||'none')" x-text="subLabel(o.sub_status)"></span></td>
+              <td data-label="到期日" x-text="o.period_end ? String(o.period_end).slice(0,10) : '—'"></td>
+              <td data-label="報價" x-text="o.quotes"></td>
+              <td class="admin-cell-actions" style="text-align:right;white-space:nowrap;">
                 <button class="btn btn-sm" @click="adminEdit(o)">編輯</button>
                 <button class="btn btn-sm" x-show="o.sub_status!=='active'" @click="adminSetSub(o,'active')">開通</button>
                 <button class="btn btn-sm btn-danger" x-show="o.sub_status==='active'" @click="adminSetSub(o,'canceled')">停用</button>

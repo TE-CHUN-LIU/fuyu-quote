@@ -1036,4 +1036,32 @@ body.printing ::placeholder { color: transparent; }
 .admin-sub-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0 6px; padding-top:12px; border-top:1px dashed #cbd5e1; font-size:13px; }
 .admin-sub-row select, .admin-sub-row input { padding:6px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:13px; }
 .admin-edit-actions { display:flex; gap:8px; margin-top:12px; }
-@media (max-width:700px){ .admin-edit-grid{ grid-template-columns:1fr; } .admin-edit-grid label.col2{ grid-column:span 1; } }
+/* 中控台：手機 + iPad 直向（≤860）把 8 欄表格改成卡片式，避免右側欄位溢出跑版 */
+@media (max-width:860px){
+  .admin-panel { padding:16px 14px 60px; }
+  .admin-head { flex-wrap:wrap; gap:8px; }
+  .admin-head > div { margin-left:0 !important; width:100%; }
+  .admin-head > div .btn { flex:1; }
+  .admin-newco input { min-width:0; flex:1 1 100%; }
+
+  /* 每間公司 = 一張卡（tbody），欄位垂直堆疊、標欄名 */
+  .admin-table { border:none; background:transparent; font-size:14px; }
+  .admin-table thead { position:absolute; left:-9999px; }
+  .admin-table tbody { display:block; background:#fff; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:12px; overflow:hidden; }
+  .admin-table tbody > tr { display:block; }
+  .admin-table td { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:9px 12px; border-top:1px solid #eef0f3; text-align:right; }
+  .admin-table td::before { content:attr(data-label); color:#8894a5; font-size:12px; font-weight:600; text-align:left; flex:none; }
+  .admin-table td.admin-cell-name { background:#2e4a6b; color:#fff; font-size:15px; font-weight:700; justify-content:flex-start; border-top:none; }
+  .admin-table td.admin-cell-name::before { display:none; }
+  .admin-table td.mono { word-break:break-all; }
+  .admin-table td.admin-cell-actions { justify-content:flex-end; flex-wrap:wrap; }
+  .admin-table td.admin-cell-actions::before { content:"操作"; margin-right:auto; }
+  .admin-table .row-off td.admin-cell-name { background:#8a94a3; }
+
+  /* 展開的編輯列鋪滿整張卡 */
+  .admin-table td.admin-edit-cell { display:block; text-align:left; }
+  .admin-table td.admin-edit-cell::before { display:none; }
+  .admin-edit-grid { grid-template-columns:1fr; }
+  .admin-edit-grid label.col2 { grid-column:span 1; }
+  .admin-logo-row { flex-wrap:wrap; }
+}
