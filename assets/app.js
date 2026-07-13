@@ -227,7 +227,12 @@ function quoteApp() {
       return t;
     },
     get currentBank() {
-      return this.company.banks[this.bankChoice];
+      const b = this.company.banks || {};
+      return b[this.bankChoice] || b.cathay || { label: '', bankName: '', bankCode: '', accountName: '', accountNo: '' };
+    },
+    get hasBank() {
+      const b = this.currentBank;
+      return !!(b && (b.accountNo || b.bankName || b.accountName));
     },
 
     // === Methods ===
@@ -398,9 +403,16 @@ function quoteApp() {
           this.cloud.subEnd = org.sub_end || null;
           this.cloud.orgActive = org.active !== false;
           if (org.company_info && org.company_info.name) {
+            const ci = org.company_info;
+            const emptyBank = { label: '', bankName: '', bankCode: '', accountName: '', accountNo: '' };
+            const sb = ci.banks || {};
+            // ⚠️ 銀行帳戶絕不跨公司 fallback（否則露出別家＝富寓帳號）；沒填就空白，保留結構避免報錯
             this.company = {
-              ...COMPANY_INFO, ...org.company_info,
-              banks: { ...COMPANY_INFO.banks, ...(org.company_info.banks || {}) },
+              ...COMPANY_INFO, ...ci,
+              banks: {
+                cathay: { ...emptyBank, ...(sb.cathay || {}) },
+                yuanta: { ...emptyBank, ...(sb.yuanta || {}) },
+              },
             };
           }
         }
@@ -1601,10 +1613,10 @@ function quoteApp() {
             <div>現場聯絡：${e(co.contact)}　${e(co.phone)}</div>
             <div>公司地址：${e(co.address)}</div>
             <div>LINE　　：${e(co.line)}</div>
-            <div>付款方式：匯款／轉帳</div>
+            <div>付款方式：匯款／轉帳</div>${this.hasBank ? `
             <div>銀行名稱：${e(bank.bankName)}（${e(bank.bankCode)}）</div>
             <div>戶　　名：${e(bank.accountName)}</div>
-            <div>匯款帳號：${e(bank.accountNo)}</div>
+            <div>匯款帳號：${e(bank.accountNo)}</div>` : ''}
             <div style="margin-top:14px;">承辦人：${e(co.contact)}　＿＿＿＿＿＿＿＿</div>
             <div style="margin-top:6px;color:#999;">（公司用印）</div>
             </div>
@@ -1825,9 +1837,11 @@ function quoteApp() {
       r.push([`${this.company.name}　統編 ${this.company.taxId}`]);
       r.push([`現場聯絡：${this.company.contact}　${this.company.phone}`]);
       r.push([`付款方式：匯款／轉帳`]);
-      r.push([`銀行名稱：${this.currentBank.bankName}（${this.currentBank.bankCode}）`]);
-      r.push([`戶　　名：${this.currentBank.accountName}`]);
-      r.push([`匯款帳號：${this.currentBank.accountNo}`]);
+      if (this.hasBank) {
+        r.push([`銀行名稱：${this.currentBank.bankName}（${this.currentBank.bankCode}）`]);
+        r.push([`戶　　名：${this.currentBank.accountName}`]);
+        r.push([`匯款帳號：${this.currentBank.accountNo}`]);
+      }
       return r;
     },
 

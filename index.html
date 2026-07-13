@@ -668,7 +668,7 @@
               <span class="key">付款方式：</span>
               <span>
                 匯款／轉帳
-                <span class="bank-selector no-print">
+                <span class="bank-selector no-print" x-show="hasBank">
                   ・選擇帳戶：
                   <select x-model="bankChoice">
                     <option value="cathay" x-text="company.banks.cathay.label"></option>
@@ -677,9 +677,9 @@
                 </span>
               </span>
             </div>
-            <div class="row"><span class="key">銀行名稱：</span><span x-text="currentBank.bankName + '（' + currentBank.bankCode + '）'"></span></div>
-            <div class="row"><span class="key">戶　　名：</span><span x-text="currentBank.accountName"></span></div>
-            <div class="row"><span class="key">匯款帳號：</span><span x-text="currentBank.accountNo"></span></div>
+            <div class="row" x-show="hasBank"><span class="key">銀行名稱：</span><span x-text="currentBank.bankName + '（' + currentBank.bankCode + '）'"></span></div>
+            <div class="row" x-show="hasBank"><span class="key">戶　　名：</span><span x-text="currentBank.accountName"></span></div>
+            <div class="row" x-show="hasBank"><span class="key">匯款帳號：</span><span x-text="currentBank.accountNo"></span></div>
             <div class="row"><span class="key">承辦人：</span><span x-text="`${company.contact}　＿＿＿＿＿＿＿＿`"></span></div>
             <div style="margin-top:16px;color:#999;font-size:11px;">（公司用印）</div>
           </div>
