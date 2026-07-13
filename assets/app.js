@@ -116,6 +116,7 @@ function quoteApp() {
     floorOptions: FLOOR_OPTIONS,
     unitOptions: UNIT_OPTIONS,
     company: COMPANY_INFO,
+    confirmClear: false,   // 清空報價單的頁內二次確認旗標
     terms: [...DEFAULT_TERMS],
     warranty: { included: [...DEFAULT_WARRANTY.included], excluded: [...DEFAULT_WARRANTY.excluded] },
     platform: PLATFORM_INFO,
@@ -473,6 +474,32 @@ function quoteApp() {
       o._end = o.period_end ? String(o.period_end).slice(0, 10) : '';
       this.admin.editingId = o.org_id;
     },
+    adminPickLogo(o, ev) {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      if (!/^image\//.test(f.type)) { alert('請選圖片檔'); ev.target.value = ''; return; }
+      const rd = new FileReader();
+      rd.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 320;               // 長邊上限，控制 base64 大小
+          let w = img.width, h = img.height;
+          if (w > h && w > max) { h = Math.round(h * max / w); w = max; }
+          else if (h >= w && h > max) { w = Math.round(w * max / h); h = max; }
+          const cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          cv.getContext('2d').drawImage(img, 0, 0, w, h);
+          if (!o.company_info) o.company_info = {};
+          o.company_info.logoUrl = cv.toDataURL('image/png');  // png 保留可能的透明背景
+          this.admin.msg = '✅ LOGO 已載入，請按「儲存抬頭」寫入';
+        };
+        img.onerror = () => alert('圖片讀取失敗，換一張試試');
+        img.src = rd.result;
+      };
+      rd.onerror = () => alert('檔案讀取失敗');
+      rd.readAsDataURL(f);
+      ev.target.value = '';
+    },
     async adminSaveOrg(o) {
       try {
         const { error } = await supaClient.rpc('fuyu_admin_update_org', {
@@ -825,8 +852,16 @@ function quoteApp() {
     },
 
     clearAll() {
-      if (!confirm('確定清空所有資料？此動作無法復原。')) return;
-      localStorage.removeItem(STORAGE_KEY);
+      // 不用 confirm()：手機瀏覽器常擋掉對話框、回傳 undefined 導致「點了沒反應」。
+      // 改頁內二次確認：第一次點顯示提醒，4 秒內再點才真的清空。
+      if (!this.confirmClear) {
+        this.confirmClear = true;
+        setTimeout(() => { this.confirmClear = false; }, 4000);
+        return;
+      }
+      this.confirmClear = false;
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      this.cloud.currentId = null;   // 脫離目前雲端那筆，避免下次存檔覆蓋
       location.reload();
     },
 
@@ -1521,7 +1556,7 @@ function quoteApp() {
       node.style.cssText = "width:820px;background:#fff;padding:28px 32px;font-family:'PingFang TC','Heiti TC',sans-serif;color:#1a1a1a;box-sizing:border-box;";
       node.innerHTML = `
         <div data-block style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #2e4a6b;padding-bottom:12px;">
-          <img src="assets/logo.png" style="width:60px;height:60px;object-fit:contain;">
+          <img src="${this.company.logoUrl || 'assets/logo.png'}" style="width:60px;height:60px;object-fit:contain;">
           <div style="flex:1;text-align:center;">
             <div style="font-size:20px;font-weight:700;">${e(co.name)}</div>
             <div style="font-size:12px;color:#888;">${e(co.englishName)}</div>

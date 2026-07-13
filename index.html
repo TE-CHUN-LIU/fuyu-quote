@@ -142,6 +142,15 @@
                   <label>服務項目<input type="text" x-model="o.company_info.services"></label>
                   <label>標語<input type="text" x-model="o.company_info.slogan"></label>
                 </div>
+                <div class="admin-bank-title">公司 LOGO</div>
+                <div class="admin-logo-row">
+                  <img class="admin-logo-preview" :src="o.company_info.logoUrl || 'assets/logo.png'" alt="LOGO 預覽">
+                  <div class="admin-logo-ctrl">
+                    <input type="file" accept="image/*" @change="adminPickLogo(o, $event)">
+                    <button type="button" class="btn btn-sm btn-danger" x-show="o.company_info.logoUrl" @click="o.company_info.logoUrl=''">移除 LOGO</button>
+                    <div class="admin-logo-hint">建議正方形；上傳後自動壓縮，顯示在報價單左上角。未設定則用系統預設圖。改完記得按下方「儲存抬頭」。</div>
+                  </div>
+                </div>
                 <div class="admin-bank-title">銀行帳戶 A</div>
                 <div class="admin-edit-grid">
                   <label>顯示名稱<input type="text" x-model="o.company_info.banks.cathay.label"></label>
@@ -292,7 +301,7 @@
 
     <!-- Header -->
     <div class="header">
-      <img src="assets/logo.png" alt="富寓室內裝潢 LOGO" class="logo">
+      <img :src="company.logoUrl || 'assets/logo.png'" alt="公司 LOGO" class="logo">
       <div class="header-text">
         <h1 x-text="company.name"></h1>
         <div class="company-en" x-text="company.englishName"></div>
@@ -682,8 +691,8 @@
 
   <!-- ===== 清空（放在全頁最下面，避免誤按） ===== -->
   <div class="clear-zone no-print" x-show="cloud.user" x-cloak>
-    <button class="btn btn-danger" @click="clearAll()" title="清空目前報價單，重新開始一張">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg><span>清空報價單</span>
+    <button class="btn btn-danger" :class="{ 'clear-armed': confirmClear }" @click="clearAll()" title="清空目前報價單，重新開始一張">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg><span x-text="confirmClear ? '⚠️ 再按一次確認清空' : '清空報價單'"></span>
     </button>
   </div>
 </div>
