@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>富寓室內裝潢有限公司｜承包商合作契約暨工班管理辦法</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="assets/contract.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.14.0/dist/html2pdf.bundle.min.js"></script>
+  <script src="assets/contract-content.js"></script>
+  <script defer src="assets/contract.js"></script>
+</head>
+<body>
+  <div id="auth-splash" class="auth-splash" role="status" aria-live="polite">
+    <div class="auth-splash-card">
+      <div class="auth-splash-mark" aria-hidden="true">富寓</div>
+      <h1>承包商契約管理</h1>
+      <p id="auth-message">正在驗證報價系統登入與公司權限…</p>
+    </div>
+  </div>
+
+  <main id="contract-app" class="site-shell" hidden>
+    <header class="topbar screen-only">
+      <a class="brand-lockup system-link" href="./" title="回報價系統">
+        <span class="brand-mark" aria-hidden="true">富寓</span>
+        <div>
+          <p>富寓室內裝潢有限公司</p>
+          <span>承包商文件管理 · 回報價系統</span>
+        </div>
+      </a>
+      <div class="privacy-chip" title="已通過報價系統登入驗證">
+        <span class="privacy-dot" aria-hidden="true"></span>
+        <span id="auth-user-label">已登入</span>
+      </div>
+    </header>
+
+    <nav class="actionbar screen-only" aria-label="契約操作">
+      <div class="actionbar-inner">
+        <button id="print-contract" type="button" class="action-button primary"><span aria-hidden="true">列</span>列印合約</button>
+        <button id="download-pdf" type="button" class="action-button"><span aria-hidden="true">PDF</span><b>下載 PDF</b></button>
+        <button id="copy-contract" type="button" class="action-button"><span aria-hidden="true">複</span>複製全部文字</button>
+        <button id="clear-contract" type="button" class="action-button danger"><span aria-hidden="true">清</span>清除簽署資料</button>
+      </div>
+      <p id="save-status" class="save-status" role="status" aria-live="polite">資料僅儲存在這台裝置的瀏覽器</p>
+    </nav>
+
+    <section id="contract-paper" class="contract-paper" aria-label="承包商合作契約"></section>
+  </main>
+</body>
+</html>

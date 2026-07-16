@@ -61,6 +61,7 @@ function quoteApp() {
       orgId: null,     // 所屬公司 id（登入後由 fuyu_ensure_org 取得）
       role: '',        // 在該公司的角色
       isAdmin: false,  // 是否平台超級管理員（跨公司）
+      contractAccess: false, // 承包商契約功能：公司已開通或平台超管
       list: [],
       showPanel: false,
       currentId: null, // 目前畫面對應的雲端筆 id；null = 尚未存雲端／新報價單
@@ -92,7 +93,8 @@ function quoteApp() {
       { key: 'idx', label: '項次' },
       { key: 'floor', label: '樓層' },
       { key: 'name', label: '項目及說明' },
-      { key: 'spec', label: '規格/尺寸' },
+      // 沿用 spec 資料鍵以相容既有雲端與 JSON 報價，介面用途已改為逐項材料。
+      { key: 'spec', label: '材料' },
       { key: 'unit', label: '單位' },
       { key: 'qty', label: '數量' },
       { key: 'price', label: '單價' },
@@ -298,10 +300,13 @@ function quoteApp() {
       this.cloud.email = user?.email || '';
       if (user) {
         this._loadOrg();
+        const next = new URLSearchParams(window.location.search).get('next');
+        if (next === 'contract.html') window.location.replace('contract.html');
       } else {
         this.cloud.orgId = null;
         this.cloud.role = '';
         this.cloud.isAdmin = false;
+        this.cloud.contractAccess = false;
         this.cloud.list = [];
       }
     },
@@ -395,6 +400,14 @@ function quoteApp() {
         const { data: adminRow } = await supaClient.rpc('fuyu_is_platform_admin');
         this.cloud.isAdmin = !!adminRow;
         this.cloud.role = this.cloud.isAdmin ? 'admin' : 'owner';
+        const { data: contractFeature, error: contractFeatureError } = await supaClient
+          .from('organization_features')
+          .select('enabled')
+          .eq('organization_id', this.cloud.orgId)
+          .eq('feature_key', 'contractor_contract')
+          .maybeSingle();
+        if (contractFeatureError) console.error('讀取契約功能權限失敗', contractFeatureError);
+        this.cloud.contractAccess = this.cloud.isAdmin || !!contractFeature?.enabled;
         // 多租戶：載入本公司抬頭＋訂閱狀態；沒設定就沿用富寓預設
         const { data: org } = await supaClient.rpc('fuyu_my_org');
         if (org) {
@@ -707,13 +720,6 @@ function quoteApp() {
         price,
         note: '',
       });
-    },
-
-    // 自動產生估價編號：FY-YYMMDD-NN
-    genQuoteNo() {
-      const d = (this.project.date || '').replace(/-/g, '').slice(2);
-      const nn = String(Math.floor(Math.random() * 90) + 10);
-      this.project.quoteNo = `FY-${d}-${nn}`;
     },
 
     removeItem(id) {
@@ -1228,7 +1234,8 @@ function quoteApp() {
         if (/數量/.test(text)) map.qty = idx;
         if (/單價/.test(text)) map.price = idx;
         if (/小計|總價|金額/.test(text)) map.subtotal = idx;
-        if (/備註|材質|說明/.test(text)) map.note = idx;
+        if (/^(材料|材質|用料)$/.test(text)) map.spec = idx;
+        if (/^(備註|施工說明|工法說明)$/.test(text)) map.note = idx;
       });
       return map.name != null && map.unit != null ? map : null;
     },
@@ -1248,6 +1255,7 @@ function quoteApp() {
             floor: this._inferFloor(name) || this._inferFloor(area) || currentFloor || area || '全棟',
             category: this._inferCategory(name || currentCategory),
             name,
+            spec: this._cleanCell(cells[headerMap.spec]),
             unit,
             qty: qty || (subtotal && price ? subtotal / price : 1),
             price,
@@ -1464,7 +1472,7 @@ function quoteApp() {
         { wch: 5 },   // 項次
         { wch: 6 },   // 樓層
         { wch: 28 },  // 項目及說明
-        { wch: 18 },  // 規格/尺寸
+        { wch: 18 },  // 材料
         { wch: 6 },   // 單位
         { wch: 8 },   // 數量
         { wch: 10 },  // 單價
@@ -1513,7 +1521,7 @@ function quoteApp() {
         ['idx', '項次', '40px', 'center'],
         ['floor', '樓層', '54px', 'center'],
         ['name', '項目及說明', '', 'left'],
-        ['spec', '規格/尺寸', '120px', 'left'],
+        ['spec', '材料', '120px', 'left'],
         ['unit', '單位', '50px', 'center'],
         ['qty', '數量', '52px', 'right'],
         ['price', '單價', '76px', 'right'],
@@ -1578,8 +1586,7 @@ function quoteApp() {
           <div style="width:60px;"></div>
         </div>
         <table data-block style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;">
-          ${infoRow('工程名稱', pr.name, '估價編號', pr.quoteNo)}
-          ${infoRow('報價日期', pr.date, '材　　質', pr.material)}
+          ${infoRow('工程名稱', pr.name, '報價日期', pr.date)}
           ${infoRow('工程地點', pr.location, '現場聯絡', pr.contact)}
           ${infoRow('客戶名稱', cu.name, '聯絡電話', cu.phone)}
           ${infoRow('公司統編', cu.taxId, '發票抬頭', cu.invoiceTitle)}
@@ -1739,7 +1746,7 @@ function quoteApp() {
 
       // 2) 逐頁畫成整張 A4（內容 + 中文頁首/頁碼用 canvas 直接畫，避免 jsPDF 中文亂碼）
       const total = slices.length;
-      const headText = `${this.company.name}　報價單` + (this.project.quoteNo ? `　${this.project.quoteNo}` : '');
+      const headText = `${this.company.name}　報價單`;
       const fontPx = Math.round(2.9 * pxPerMm);
       slices.forEach(([a, b, topM], i) => {
         const sliceH = b - a;
@@ -1775,8 +1782,7 @@ function quoteApp() {
       r.push(['報價單']);
       r.push([]);
       // 工程資訊
-      r.push(['工程名稱', this.project.name, '', '', '估價編號', this.project.quoteNo]);
-      r.push(['報價日期', this.project.date, '', '', '材質', this.project.material]);
+      r.push(['工程名稱', this.project.name, '', '', '報價日期', this.project.date]);
       r.push(['工程地點', this.project.location, '', '', '現場聯絡', this.project.contact]);
       r.push([]);
       // 客戶資訊
@@ -1785,7 +1791,7 @@ function quoteApp() {
       r.push(['客戶地址', this.customer.address]);
       r.push([]);
       // 項目表標頭
-      r.push(['項次', '樓層', '項目及說明', '規格/尺寸', '單位', '數量', '單價', '總價', '備註']);
+      r.push(['項次', '樓層', '項目及說明', '材料', '單位', '數量', '單價', '總價', '備註']);
       // 依分類列出
       let seq = 0;
       for (const [cat, list] of Object.entries(this.itemsByCategory)) {

@@ -14,6 +14,10 @@
 - **匯出／匯入 JSON**：方便備份與在不同設備間轉移
 - **智慧匯入**：JSON / CSV / Excel / 可選文字 PDF 可直接匯入；掃描 PDF、圖片、Numbers 可接 `/api/ai-import` 走 AI 解析
 - **列印優化**：CSS `@media print` 控制版型，直接列印或存 PDF
+- **承包商契約**：登入後可開啟 `contract.html`，填寫完整合作契約、列印、下載 PDF 與複製文字
+- **公司功能權限**：契約入口由 Supabase Auth、公司成員 RLS 與 `organization_features` 三層控管
+
+契約填寫內容不會上傳到 Supabase，僅以「公司＋登入帳號」為範圍儲存在該裝置的 `localStorage`。直接開啟 `contract.html` 而未登入時，會返回系統登入頁；未開通功能的公司即使已登入也無法進入。
 
 ## 使用方式
 

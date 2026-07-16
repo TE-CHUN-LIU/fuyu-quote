@@ -42,6 +42,9 @@
       <button class="btn btn-primary" x-show="cloud.isAdmin" x-cloak @click="openAdmin()" title="平台訂閱管理中控台">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>訂閱管理</span>
       </button>
+      <a class="btn" x-show="cloud.contractAccess" x-cloak href="contract.html" title="承包商合作契約暨工班管理辦法">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg><span>承包商契約</span>
+      </a>
       <label class="btn" style="cursor:pointer;" :class="{ 'btn-accent': importState.busy }" title="JSON / CSV / Excel / 可選字 PDF 直接解析；掃描 PDF、圖片、Numbers 走 AI 解析">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18.4 9 13.8 10.8 12 15l-1.8-4.2L5.6 9l4.6-1.4z"/><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/></svg><span>智慧匯入</span>
         <input type="file" accept=".json,.csv,.xlsx,.xls,.numbers,.pdf,image/*" @change="importAny($event)" style="display:none;">
@@ -322,15 +325,6 @@
         <input type="date" x-model="project.date">
       </div>
       <div class="info-row">
-        <label>估價編號：</label>
-        <input type="text" x-model="project.quoteNo" placeholder="例：FY-241214-01">
-        <button class="btn no-print" style="font-size:11px;padding:2px 8px;flex:0 0 auto;" @click="genQuoteNo()" title="自動產生編號">產生</button>
-      </div>
-      <div class="info-row">
-        <label>材　　質：</label>
-        <input type="text" x-model="project.material" placeholder="例：安盛美耐板（連工帶料）">
-      </div>
-      <div class="info-row">
         <label>工程地點：</label>
         <input type="text" x-model="project.location" placeholder="施工地址">
       </div>
@@ -444,7 +438,7 @@
                   </select>
                 </td>
                 <td x-show="cols.name.show"><textarea x-model="item.name" rows="1"></textarea></td>
-                <td x-show="cols.spec.show"><textarea x-model="item.spec" rows="1" placeholder="尺寸/規格"></textarea></td>
+                <td x-show="cols.spec.show"><textarea x-model="item.spec" rows="1" placeholder="材料/材質"></textarea></td>
                 <td x-show="cols.unit.show">
                   <select @change="item.unit = $event.target.value">
                     <template x-for="u in unitOptions" :key="u">
