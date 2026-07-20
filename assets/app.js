@@ -9,6 +9,16 @@ const SUPA_KEY = 'sb_publishable_hqupVgCRCxuMKb6UJXLglg_cEB-rifP';
 let supaClient = null; // 模組層持有，不放進 Alpine 反應式 state
 let supaAuthUnsubscribe = null;
 
+// 舊的 Safari Blob 分頁重新整理後，可能會變成同網域下的失效路徑。
+// Vercel fallback 會先載入首頁，再把網址列清回正式根目錄，方便重新收藏。
+if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+  window.history.replaceState(
+    null,
+    document.title,
+    '/' + window.location.search + window.location.hash,
+  );
+}
+
 function quoteApp() {
   return {
     // === State ===
@@ -1714,9 +1724,16 @@ function quoteApp() {
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     },
 
+    _isAppleMobile() {
+      const ua = navigator.userAgent || '';
+      return /iPad|iPhone|iPod/i.test(ua)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    },
+
     _showPngActions(file, blob, filename, canShareFile) {
       const old = document.getElementById('png-export-actions');
       if (old) old.remove();
+      const appleMobile = this._isAppleMobile();
 
       const overlay = document.createElement('div');
       overlay.id = 'png-export-actions';
@@ -1734,8 +1751,12 @@ function quoteApp() {
 
       const message = document.createElement('p');
       message.textContent = canShareFile
-        ? '按「分享／儲存圖片」，再選 LINE 或「儲存影像」。'
-        : '這個瀏覽器不支援直接分享，請下載 PNG。';
+        ? appleMobile
+          ? '按「分享／儲存圖片」，再選 LINE 或「儲存影像」；目前分頁會留在富寓系統。'
+          : '按「分享／儲存圖片」，再選要使用的 App。'
+        : appleMobile
+          ? 'Safari 暫時無法直接分享，請關閉視窗、重新整理後再試。'
+          : '這個瀏覽器不支援直接分享，請下載 PNG。';
       message.style.cssText = 'margin:0 0 16px;color:#555;font-size:15px;line-height:1.6;';
 
       const status = document.createElement('p');
@@ -1773,19 +1794,26 @@ function quoteApp() {
               return;
             }
             console.warn('原生 PNG 分享失敗', e);
-            status.textContent = '無法開啟分享，請改按「下載 PNG」。';
+            status.textContent = appleMobile
+              ? 'Safari 尚未允許分享，請再按一次；若仍失敗請重新整理。'
+              : '無法開啟分享，請改按「下載 PNG」。';
             shareButton.disabled = false;
           }
         });
         actions.appendChild(shareButton);
       }
 
-      const downloadButton = makeButton('下載 PNG', !canShareFile);
-      downloadButton.addEventListener('click', () => {
-        this._downloadBlob(blob, filename);
-        overlay.remove();
-      });
-      actions.appendChild(downloadButton);
+      let downloadButton = null;
+      // iOS Safari 可能把 Blob 下載接管成目前分頁；該網址一旦重開就會失效。
+      // Apple 行動裝置只走原生檔案分享，由分享面板提供「儲存影像」。
+      if (!appleMobile) {
+        downloadButton = makeButton('下載 PNG', !canShareFile);
+        downloadButton.addEventListener('click', () => {
+          this._downloadBlob(blob, filename);
+          overlay.remove();
+        });
+        actions.appendChild(downloadButton);
+      }
 
       const cancelButton = makeButton('取消', false);
       cancelButton.addEventListener('click', () => overlay.remove());
@@ -1797,7 +1825,7 @@ function quoteApp() {
       panel.appendChild(actions);
       overlay.appendChild(panel);
       document.body.appendChild(overlay);
-      (shareButton || downloadButton).focus();
+      (shareButton || downloadButton || cancelButton).focus();
     },
 
     async savePng() {
