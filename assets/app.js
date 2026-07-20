@@ -1714,6 +1714,92 @@ function quoteApp() {
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     },
 
+    _showPngActions(file, blob, filename, canShareFile) {
+      const old = document.getElementById('png-export-actions');
+      if (old) old.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'png-export-actions';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'PNG 圖片已準備完成');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.48);box-sizing:border-box;';
+
+      const panel = document.createElement('div');
+      panel.style.cssText = 'width:min(100%,360px);padding:22px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.28);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif;color:#1a1a1a;box-sizing:border-box;';
+
+      const title = document.createElement('strong');
+      title.textContent = '圖片已準備完成';
+      title.style.cssText = 'display:block;font-size:20px;margin-bottom:8px;';
+
+      const message = document.createElement('p');
+      message.textContent = canShareFile
+        ? '按「分享／儲存圖片」，再選 LINE 或「儲存影像」。'
+        : '這個瀏覽器不支援直接分享，請下載 PNG。';
+      message.style.cssText = 'margin:0 0 16px;color:#555;font-size:15px;line-height:1.6;';
+
+      const status = document.createElement('p');
+      status.setAttribute('aria-live', 'polite');
+      status.style.cssText = 'min-height:20px;margin:0 0 10px;color:#b45309;font-size:13px;line-height:1.5;';
+
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+
+      const makeButton = (label, primary) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.style.cssText = primary
+          ? 'width:100%;padding:12px 16px;border:0;border-radius:10px;background:#2e4a6b;color:#fff;font-size:16px;font-weight:700;cursor:pointer;'
+          : 'width:100%;padding:12px 16px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#1f2937;font-size:15px;font-weight:600;cursor:pointer;';
+        return button;
+      };
+
+      let shareButton = null;
+      if (canShareFile) {
+        shareButton = makeButton('分享／儲存圖片', true);
+        shareButton.addEventListener('click', async () => {
+          shareButton.disabled = true;
+          status.textContent = '正在開啟系統分享選單…';
+          try {
+            await navigator.share({
+              files: [file],
+              title: filename.replace(/\.png$/i, ''),
+            });
+            overlay.remove();
+          } catch (e) {
+            if (e && e.name === 'AbortError') {
+              overlay.remove();
+              return;
+            }
+            console.warn('原生 PNG 分享失敗', e);
+            status.textContent = '無法開啟分享，請改按「下載 PNG」。';
+            shareButton.disabled = false;
+          }
+        });
+        actions.appendChild(shareButton);
+      }
+
+      const downloadButton = makeButton('下載 PNG', !canShareFile);
+      downloadButton.addEventListener('click', () => {
+        this._downloadBlob(blob, filename);
+        overlay.remove();
+      });
+      actions.appendChild(downloadButton);
+
+      const cancelButton = makeButton('取消', false);
+      cancelButton.addEventListener('click', () => overlay.remove());
+      actions.appendChild(cancelButton);
+
+      panel.appendChild(title);
+      panel.appendChild(message);
+      panel.appendChild(status);
+      panel.appendChild(actions);
+      overlay.appendChild(panel);
+      document.body.appendChild(overlay);
+      (shareButton || downloadButton).focus();
+    },
+
     async savePng() {
       const r = await this._capturePaper();
       if (!r) return;
@@ -1741,22 +1827,9 @@ function quoteApp() {
         console.warn('檢查 PNG 分享支援時發生錯誤', e);
       }
 
-      if (canShareFile && typeof navigator.share === 'function') {
-        try {
-          await navigator.share({
-            files: [file],
-            title: filename.replace(/\.png$/i, ''),
-          });
-          return;
-        } catch (e) {
-          // 使用者關閉分享面板不是錯誤，也不要又自動下載一份。
-          if (e && e.name === 'AbortError') return;
-          console.warn('原生 PNG 分享失敗，改用檔案下載', e);
-        }
-      }
-
-      // 桌面瀏覽器與不支援檔案分享的舊瀏覽器維持下載行為。
-      this._downloadBlob(blob, filename);
+      // 產圖是非同步工作，完成時瀏覽器的「使用者點擊授權」可能已逾時。
+      // 先顯示已準備完成的按鈕，讓分享／下載在新的實際點擊中立即執行。
+      this._showPngActions(file, blob, filename, canShareFile);
     },
 
     async savePdf() {
