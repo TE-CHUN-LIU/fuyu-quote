@@ -1732,8 +1732,12 @@ function quoteApp() {
 
     _showPngActions(file, blob, filename, canShareFile) {
       const old = document.getElementById('png-export-actions');
-      if (old) old.remove();
+      if (old) {
+        if (typeof old._closePngActions === 'function') old._closePngActions();
+        else old.remove();
+      }
       const appleMobile = this._isAppleMobile();
+      let previewUrl = '';
 
       const overlay = document.createElement('div');
       overlay.id = 'png-export-actions';
@@ -1741,6 +1745,14 @@ function quoteApp() {
       overlay.setAttribute('aria-modal', 'true');
       overlay.setAttribute('aria-label', 'PNG 圖片已準備完成');
       overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.48);box-sizing:border-box;';
+      let closed = false;
+      const closeOverlay = () => {
+        if (closed) return;
+        closed = true;
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        overlay.remove();
+      };
+      overlay._closePngActions = closeOverlay;
 
       const panel = document.createElement('div');
       panel.style.cssText = 'width:min(100%,360px);padding:22px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.28);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif;color:#1a1a1a;box-sizing:border-box;';
@@ -1752,12 +1764,25 @@ function quoteApp() {
       const message = document.createElement('p');
       message.textContent = canShareFile
         ? appleMobile
-          ? '按「分享／儲存圖片」，再選 LINE 或「儲存影像」；目前分頁會留在富寓系統。'
+          ? '按「分享／儲存圖片」，再選 LINE 或「儲存影像」。若分享被擋住，可長按下方圖片選「儲存到照片」。'
           : '按「分享／儲存圖片」，再選要使用的 App。'
         : appleMobile
-          ? 'Safari 暫時無法直接分享，請關閉視窗、重新整理後再試。'
+          ? 'Safari 暫時無法直接分享，請長按下方圖片選「儲存到照片」。'
           : '這個瀏覽器不支援直接分享，請下載 PNG。';
       message.style.cssText = 'margin:0 0 16px;color:#555;font-size:15px;line-height:1.6;';
+
+      let previewImage = null;
+      if (appleMobile) {
+        try {
+          previewUrl = URL.createObjectURL(blob);
+          previewImage = document.createElement('img');
+          previewImage.src = previewUrl;
+          previewImage.alt = '報價單 PNG 預覽，長按可儲存到照片';
+          previewImage.style.cssText = 'display:block;width:100%;max-height:220px;margin:0 0 14px;border:1px solid #d9e0e8;border-radius:8px;background:#f8fafc;object-fit:contain;-webkit-touch-callout:default;';
+        } catch (e) {
+          console.warn('建立 PNG 預覽失敗', e);
+        }
+      }
 
       const status = document.createElement('p');
       status.setAttribute('aria-live', 'polite');
@@ -1787,15 +1812,15 @@ function quoteApp() {
               files: [file],
               title: filename.replace(/\.png$/i, ''),
             });
-            overlay.remove();
+            closeOverlay();
           } catch (e) {
             if (e && e.name === 'AbortError') {
-              overlay.remove();
+              closeOverlay();
               return;
             }
             console.warn('原生 PNG 分享失敗', e);
             status.textContent = appleMobile
-              ? 'Safari 尚未允許分享，請再按一次；若仍失敗請重新整理。'
+              ? '無法開啟分享；請長按上方圖片選「儲存到照片」。'
               : '無法開啟分享，請改按「下載 PNG」。';
             shareButton.disabled = false;
           }
@@ -1810,17 +1835,18 @@ function quoteApp() {
         downloadButton = makeButton('下載 PNG', !canShareFile);
         downloadButton.addEventListener('click', () => {
           this._downloadBlob(blob, filename);
-          overlay.remove();
+          closeOverlay();
         });
         actions.appendChild(downloadButton);
       }
 
       const cancelButton = makeButton('取消', false);
-      cancelButton.addEventListener('click', () => overlay.remove());
+      cancelButton.addEventListener('click', closeOverlay);
       actions.appendChild(cancelButton);
 
       panel.appendChild(title);
       panel.appendChild(message);
+      if (previewImage) panel.appendChild(previewImage);
       panel.appendChild(status);
       panel.appendChild(actions);
       overlay.appendChild(panel);
