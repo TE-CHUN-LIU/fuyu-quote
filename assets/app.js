@@ -1764,10 +1764,10 @@ function quoteApp() {
       const message = document.createElement('p');
       message.textContent = canShareFile
         ? appleMobile
-          ? '按「分享／儲存圖片」，再選 LINE 或「儲存影像」。若分享被擋住，可長按下方圖片選「儲存到照片」。'
+          ? '最穩定的方式：長按下方圖片選「儲存到照片」，再從 LINE 相簿傳送。也可以按下方按鈕直接分享純圖片。'
           : '按「分享／儲存圖片」，再選要使用的 App。'
         : appleMobile
-          ? 'Safari 暫時無法直接分享，請長按下方圖片選「儲存到照片」。'
+          ? '請長按下方圖片選「儲存到照片」，再從 LINE 相簿傳送。'
           : '這個瀏覽器不支援直接分享，請下載 PNG。';
       message.style.cssText = 'margin:0 0 16px;color:#555;font-size:15px;line-height:1.6;';
 
@@ -1803,14 +1803,14 @@ function quoteApp() {
 
       let shareButton = null;
       if (canShareFile) {
-        shareButton = makeButton('分享／儲存圖片', true);
+        shareButton = makeButton(appleMobile ? '直接分享純圖片' : '分享／儲存圖片', true);
         shareButton.addEventListener('click', async () => {
           shareButton.disabled = true;
           status.textContent = '正在開啟系統分享選單…';
           try {
+            // 只交付 PNG File；不要附帶 title/text/url，避免 LINE 將內容判成分享卡。
             await navigator.share({
               files: [file],
-              title: filename.replace(/\.png$/i, ''),
             });
             closeOverlay();
           } catch (e) {
@@ -1820,7 +1820,7 @@ function quoteApp() {
             }
             console.warn('原生 PNG 分享失敗', e);
             status.textContent = appleMobile
-              ? '無法開啟分享；請長按上方圖片選「儲存到照片」。'
+              ? '若 LINE 顯示分享卡，請長按上方圖片選「儲存到照片」，再從 LINE 相簿傳送。'
               : '無法開啟分享，請改按「下載 PNG」。';
             shareButton.disabled = false;
           }
