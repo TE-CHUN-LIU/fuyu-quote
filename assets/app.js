@@ -1689,13 +1689,74 @@ function quoteApp() {
       return canvas ? { canvas, breaks, sigTop } : null;
     },
 
+    _canvasToPngBlob(canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+            return;
+          }
+          reject(new Error('瀏覽器無法建立 PNG 圖片'));
+        }, 'image/png');
+      });
+    },
+
+    _downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // iOS Safari 需要一點時間接手檔案；太早 revoke 會讓分享／儲存拿到失效網址。
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    },
+
     async savePng() {
       const r = await this._capturePaper();
       if (!r) return;
-      const a = document.createElement('a');
-      a.href = r.canvas.toDataURL('image/png');
-      a.download = this._exportName() + '.png';
-      a.click();
+      const filename = this._exportName() + '.png';
+      let blob;
+      try {
+        blob = await this._canvasToPngBlob(r.canvas);
+      } catch (e) {
+        alert('產生 PNG 失敗：' + (e.message || e));
+        return;
+      }
+
+      // iPhone / iPad 用真正的 PNG File 交給系統分享面板。
+      // 不再分享 data:/blob: 暫存連結，LINE 才能收到可傳送的圖片檔，
+      // 分享面板也會提供「儲存影像」。
+      const file = new File([blob], filename, {
+        type: 'image/png',
+        lastModified: Date.now(),
+      });
+      let canShareFile = false;
+      try {
+        canShareFile = typeof navigator.canShare === 'function'
+          && navigator.canShare({ files: [file] });
+      } catch (e) {
+        console.warn('檢查 PNG 分享支援時發生錯誤', e);
+      }
+
+      if (canShareFile && typeof navigator.share === 'function') {
+        try {
+          await navigator.share({
+            files: [file],
+            title: filename.replace(/\.png$/i, ''),
+          });
+          return;
+        } catch (e) {
+          // 使用者關閉分享面板不是錯誤，也不要又自動下載一份。
+          if (e && e.name === 'AbortError') return;
+          console.warn('原生 PNG 分享失敗，改用檔案下載', e);
+        }
+      }
+
+      // 桌面瀏覽器與不支援檔案分享的舊瀏覽器維持下載行為。
+      this._downloadBlob(blob, filename);
     },
 
     async savePdf() {
